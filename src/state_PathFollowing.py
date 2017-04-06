@@ -42,6 +42,8 @@ class PathFollowing(smach.State):
         return msg
 
     def find_next_pose(self, path):
+        if not len(path.poses):
+            return "EOP"
         transform = self.get_transform()
         pose_transformed = tf2_geometry_msgs.do_transform_pose(path.poses[0], transform)
         dist_x = pose_transformed.pose.position.x
@@ -69,7 +71,7 @@ class PathFollowing(smach.State):
         next_pose = self.find_next_pose(userdata.path)
         print next_pose
         if next_pose == "EOP":
-            rospy.logwarn("EOP")
+            rospy.loginfo("EOP")
             return "EOP"
         else:
             goal_reached = False
@@ -83,5 +85,5 @@ class PathFollowing(smach.State):
                 if math.sqrt(dist_x**2 + dist_y**2) < 0.1:
                     goal_reached = True
             # tell robot to stop
-            publisher.publish(Twist())
+            #publisher.publish(Twist())
             return "again"

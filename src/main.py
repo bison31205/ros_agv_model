@@ -13,44 +13,30 @@ from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Twist
 
 from state_PathFollowing import PathFollowing
+from state_GetPath import GetPath
 
 
 class RobotModel():
-    def __init__(self, robot):
-        self.robot = robot
-        rospy.init_node(self.robot + "_node")
-
+    def __init__(self):
+        rospy.init_node("robot_node")
+        self.robot = rospy.get_param('name')
+        
+        print self.robot
+        
         # Create a SMACH state machine
         self.sm = smach.StateMachine(outcomes=['END'])
         self.sm.userdata.robot = self.robot
         self.sm.userdata.speed = 0.15
-
-        pos1 = PoseStamped()
-        pos1.pose.position.x = 1
-        pos1.pose.position.y = 0
-        pos2 = PoseStamped()
-        pos2.pose.position.x = 3
-        pos2.pose.position.y = 0
-        pos3 = PoseStamped()
-        pos3.pose.position.x = 3
-        pos3.pose.position.y = 5
-        pos4 = PoseStamped()
-        pos4.pose.position.x = 1
-        pos4.pose.position.y = 5
-        pos5 = PoseStamped()
-        pos5.pose.position.x = 1
-        pos5.pose.position.y = 0
-        path = Path()
-        path.poses = [pos1, pos2, pos3, pos4, pos5]
-
-        self.sm.userdata.path = path
+        self.sm.userdata.path = Path()
 
         # Open the container
         with self.sm:
             # Add states to the container
+            smach.StateMachine.add('GetPath', GetPath(),
+                                   transitions={'follow_path':'PathFollowing'})
             smach.StateMachine.add('PathFollowing', PathFollowing(),
                                    transitions={'again':'PathFollowing',
-                                                'EOP':'END'})
+                                                'EOP':'GetPath'})
 
     def start(self):
         self.sm.execute()
@@ -65,5 +51,5 @@ class RobotModel():
         else : return 'NaN'
 
 if __name__ == '__main__':
-    asd = RobotModel("mirko")
+    asd = RobotModel()
     asd.start()

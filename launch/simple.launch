@@ -1,0 +1,29 @@
+<launch>
+  <arg name="robot_name" />
+  <arg name="init_pose" />
+  <arg name="output" />
+  
+  <node pkg="map_server" type="map_server" name="$(arg robot_name)_map_server" args="$(find lattice_planner)/maps/empty.yaml">
+    <remap from="map" to="$(arg robot_name)/map" />
+  </node>   
+  <node pkg="tf2_ros" type="static_transform_publisher" name="$(arg robot_name)_link_broadcaster_map" args="0 0 0 0 0 0 1 world $(arg robot_name)/map" />
+  <node pkg="tf2_ros" type="static_transform_publisher" name="$(arg robot_name)_link_broadcaster_base_link" args="0 0 0 0 0 0 1 world $(arg robot_name)/odom" />
+  
+  <node pkg="rostopic" type="rostopic" name="$(arg robot_name)_rostopic_initpose" args="pub $(arg robot_name)/initialpose geometry_msgs/Pose $(arg init_pose)"/>
+  
+  <param name="$(arg robot_name)/name" value="$(arg robot_name)" />
+  
+  <node name="$(arg robot_name)_robot_model" pkg="robot_model" type="main.py" output="$(arg output)">
+    <remap from="name" to="$(arg robot_name)/name" />
+  </node>
+  
+  <!-- Launch the planner -->
+  <node pkg="lattice_planner" type="pathPlanner" name="$(arg robot_name)_path_planner" args="$(find lattice_planner)/params/params_p3dx.mat" output="screen">
+    <param name="map_frame_id" value="$(arg robot_name)/map" />
+    <param name="robot_frame_id" value="$(arg robot_name)/base_link" />
+    <remap from="goal" to="$(arg robot_name)/goal" />
+    <remap from="plan" to="$(arg robot_name)/plan" />
+    <remap from="map" to="$(arg robot_name)/map" />
+  </node>
+  
+</launch>
