@@ -8,12 +8,20 @@ import tf2_ros
 import tf2_geometry_msgs
 import itertools
 import math
-from nav_msgs.msg import Path
-from geometry_msgs.msg import PoseStamped
-from geometry_msgs.msg import Twist
 
-from state_PathFollowing import PathFollowing
+from state_Start import Start
+from state_ProcessMap import ProcessMap
+from state_ReceiveMission import ReceiveMission
 from state_GetPath import GetPath
+# from state_CalcTrajectory import CalcTrajectory
+# from state_CheckClearance import CheckClearance
+# from state_PathFollowing import PathFollowing
+# from state_ConflictResolver import ConflictResolver
+# from state_AddIntermidiateGoal import AddIntermidiateGoal
+# from state_ChangeSpeed import ChangeSpeed
+# from state_GoalAssigment import GoalAssigment
+
+
 
 
 class RobotModel():
@@ -26,17 +34,19 @@ class RobotModel():
         # Create a SMACH state machine
         self.sm = smach.StateMachine(outcomes=['END'])
         self.sm.userdata.robot = self.robot
-        self.sm.userdata.speed = 0.15
-        self.sm.userdata.path = Path()
 
         # Open the container
         with self.sm:
             # Add states to the container
+            smach.StateMachine.add('Start', Start(),
+                                   transitions={'init_complete': 'ProcessMap'})
+            smach.StateMachine.add('ProcessMap', ProcessMap(),
+                                   transitions={'map_segmented': 'ReceiveMission'})
+            smach.StateMachine.add('ReceiveMission', ReceiveMission(),
+                                   transitions={'mission_received': 'GetPath'})
             smach.StateMachine.add('GetPath', GetPath(),
-                                   transitions={'follow_path':'PathFollowing'})
-            smach.StateMachine.add('PathFollowing', PathFollowing(),
-                                   transitions={'again':'PathFollowing',
-                                                'EOP':'GetPath'})
+                                   transitions={'path_received': 'CalcTrajectory'})
+
 
     def start(self):
         self.sm.execute()
