@@ -13,13 +13,13 @@ from state_Start import Start
 from state_ProcessMap import ProcessMap
 from state_ReceiveMission import ReceiveMission
 from state_GetPath import GetPath
-# from state_CalcTrajectory import CalcTrajectory
+from state_CalcTrajectory import CalcTrajectory
 # from state_CheckClearance import CheckClearance
-# from state_PathFollowing import PathFollowing
+from state_Driving import Driving
 # from state_ConflictResolver import ConflictResolver
 # from state_AddIntermidiateGoal import AddIntermidiateGoal
 # from state_ChangeSpeed import ChangeSpeed
-# from state_GoalAssigment import GoalAssigment
+from state_GoalAssigment import GoalAssigment
 
 
 
@@ -34,6 +34,8 @@ class RobotModel():
         # Create a SMACH state machine
         self.sm = smach.StateMachine(outcomes=['END'])
         self.sm.userdata.robot = self.robot
+        self.sm.userdata.sampling_time = 5  # seconds
+        self.sm.userdata.max_speed = 0.15  # m/s
 
         # Open the container
         with self.sm:
@@ -46,7 +48,15 @@ class RobotModel():
                                    transitions={'mission_received': 'GetPath'})
             smach.StateMachine.add('GetPath', GetPath(),
                                    transitions={'path_received': 'CalcTrajectory'})
+            smach.StateMachine.add('CalcTrajectory', CalcTrajectory(),
+                                   transitions={'trajectory_created': 'CheckClearance'})
 
+            smach.StateMachine.add('Driving', PathFollowing(),
+                                   transitions={'goal_reached': 'GoalAssigment',
+                                                'middle_of_path': 'CheckClearance'})
+            smach.StateMachine.add('GoalAssigment', GoalAssigment(),
+                                   transitions={'go_to_next_goal': 'CalcTrajectory',
+                                                'get_new_mission' : 'ReceiveMission'})
 
     def start(self):
         self.sm.execute()

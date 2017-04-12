@@ -28,5 +28,5 @@ class GetPath(smach.State):
             pass
 
         userdata.path = self.path
-        userdata.speed = 'max'
+        userdata.speed = dict()
         return 'path_received'
