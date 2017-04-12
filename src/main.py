@@ -53,10 +53,10 @@ class RobotModel():
 
             smach.StateMachine.add('Driving', PathFollowing(),
                                    transitions={'goal_reached': 'GoalAssigment',
-                                                'middle_of_path': 'CheckClearance'})
+                                                'next_segment': 'CheckClearance'})
             smach.StateMachine.add('GoalAssigment', GoalAssigment(),
-                                   transitions={'go_to_next_goal': 'CalcTrajectory',
-                                                'get_new_mission' : 'ReceiveMission'})
+                                   transitions={'next_goal': 'CalcTrajectory',
+                                                'new_mission' : 'ReceiveMission'})
 
     def start(self):
         self.sm.execute()

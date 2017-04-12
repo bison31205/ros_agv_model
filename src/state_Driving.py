@@ -8,7 +8,7 @@ max_speed = 0.15 # m/s
 class GoalAssigment(smach.StateMachine):
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['goal_reached', 'middle_of_path'],
+                             outcomes=['goal_reached', 'next_segment'],
                              input_keys=['trajectory', 'speed', 'max_speed'],
                              output_keys=['trajectory'])
 
