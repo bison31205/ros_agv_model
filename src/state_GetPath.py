@@ -1,6 +1,5 @@
 import rospy
 import smach
-import math
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped
 
@@ -10,7 +9,7 @@ class GetPath(smach.State):
         smach.State.__init__(self,
                              outcomes=['follow_path'],
                              input_keys=['robot', 'goal_list'],
-                             output_keys=['path', 'speed'])
+                             output_keys=['path', 'speed', 'segment_index'])
         self.pathReady = False
         self.path = Path()
 
@@ -27,6 +26,7 @@ class GetPath(smach.State):
         while not self.pathReady:
             pass
 
+        userdata.segment_index = 0
         userdata.path = self.path
         userdata.speed = dict()
         return 'path_received'

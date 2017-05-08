@@ -12,7 +12,7 @@ class Start(smach.StateMachine):
                              output_keys=['map', 'pose'])
         self.mapReady = False
         self.poseReady = False
-        self.map = Map()
+        self.map = OccupancyGrid()
         self.pose = Pose()
 
     def map_callback(self, map, userdata):

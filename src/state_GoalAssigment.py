@@ -14,4 +14,5 @@ class GoalAssigment(smach.StateMachine):
         if len(userdata.goal_list):
             return 'next_goal'
         else:
+            ## MISIJA JE IZVRSENA!!!
             return 'new_mission'

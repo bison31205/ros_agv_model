@@ -1,27 +1,20 @@
 #!/usr/bin/env python
 
-import roslib
 import rospy
 import smach
-import smach_ros
-import tf2_ros
-import tf2_geometry_msgs
-import itertools
-import math
+
 
 from state_Start import Start
 from state_ProcessMap import ProcessMap
 from state_ReceiveMission import ReceiveMission
 from state_GetPath import GetPath
 from state_CalcTrajectory import CalcTrajectory
-# from state_CheckClearance import CheckClearance
+from state_CheckClearance import CheckClearance
 from state_Driving import Driving
-# from state_ConflictResolver import ConflictResolver
-# from state_AddIntermidiateGoal import AddIntermidiateGoal
-# from state_ChangeSpeed import ChangeSpeed
+from state_ConflictResolver import ConflictResolver
+from state_AddIntermediateGoal import AddIntermediateGoal
+from state_ChangeSpeed import ChangeSpeed
 from state_GoalAssigment import GoalAssigment
-
-
 
 
 class RobotModel():
@@ -50,25 +43,27 @@ class RobotModel():
                                    transitions={'path_received': 'CalcTrajectory'})
             smach.StateMachine.add('CalcTrajectory', CalcTrajectory(),
                                    transitions={'trajectory_created': 'CheckClearance'})
-
-            smach.StateMachine.add('Driving', PathFollowing(),
+            smach.StateMachine.add('CheckClearance', CheckClearance(),
+                                   transitions={'conflict': 'ConflictResolver',
+                                                'OK_clearance': 'Driving'})
+            smach.StateMachine.add('Driving', Driving(),
                                    transitions={'goal_reached': 'GoalAssigment',
                                                 'next_segment': 'CheckClearance'})
             smach.StateMachine.add('GoalAssigment', GoalAssigment(),
                                    transitions={'next_goal': 'CalcTrajectory',
                                                 'new_mission' : 'ReceiveMission'})
 
+            smach.StateMachine.add('ConflictResolver', ConflictResolver(),
+                                   transitions={'just_drive': 'Driving',
+                                                'change_path': 'AddIntermediateGoal',
+                                                'change_speed': 'ChangeSpeed'})
+            smach.StateMachine.add('AddIntermediateGoal', AddIntermediateGoal(),
+                                   transitions={'goal_added': 'GetPath'})
+            smach.StateMachine.add('ChangeSpeed', ChangeSpeed(),
+                                   transitions={'speed_changed': 'CalcTrajectory'})
+
     def start(self):
         self.sm.execute()
-
-    def n_sphere(self, feat, weight, param):
-        dist = 0
-        for f,w,p in itertools.izip(feat[1:], weight[1:], param[1:]):
-            dist += (f * w - p) ** 2
-        dist = math.sqrt(dist)
-        if dist <= param[0]:
-            return weight[0] * dist / param[0]
-        else : return 'NaN'
 
 if __name__ == '__main__':
     asd = RobotModel()

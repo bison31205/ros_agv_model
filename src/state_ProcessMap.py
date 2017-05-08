@@ -2,7 +2,7 @@ import rospy
 import smach
 
 
-class Start(smach.StateMachine):
+class ProcessMap(smach.StateMachine):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['ready'],
@@ -11,4 +11,3 @@ class Start(smach.StateMachine):
 
     def execute(self, userdata):
         return 'map_segmented'
-
