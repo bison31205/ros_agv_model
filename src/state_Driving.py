@@ -4,19 +4,19 @@ from nav_msgs.msg import Path
 from geometry_msgs.msg import Twist
 
 
-class Driving(smach.StateMachine):
+class Driving(smach.State):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['goal_reached', 'next_segment'],
-                             input_keys=['trajectory', 'segment_index', 'speed', 'max_speed'],
+                             input_keys=['robot', 'trajectory', 'segment_index', 'speed', 'max_speed'],
                              output_keys=['trajectory', 'segment_index'])
 
     def execute(self, userdata):
-        speed_pub = rospy.Publisher(userdata.robot + "/cmd_vel", Twist, queue_size=10)
-        path_pub = rospy.Publisher(userdata.robot + "/follow_path", Path, queue_size=10)
+        speed_pub = rospy.Publisher(userdata.robot + "/cmd_vel", Twist, queue_size=10, latch=True)
+        path_pub = rospy.Publisher(userdata.robot + "/follow_path", Path, queue_size=10, latch=True)
 
         cmd_vel = Twist()
-        cmd_vel.linear.x = userdata.speed
+        cmd_vel.linear.x = userdata.speed[userdata.segment_index]
 
         speed_pub.publish(cmd_vel)
         path_pub.publish(userdata.trajectory[userdata.segment_index])

@@ -2,7 +2,7 @@ import rospy
 import smach
 
 
-class GoalAssigment(smach.StateMachine):
+class GoalAssigment(smach.State):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['new_mission', 'next_goal'],
@@ -11,8 +11,8 @@ class GoalAssigment(smach.StateMachine):
 
     def execute(self, userdata):
         userdata.goal_list.pop(0)
-        if len(userdata.goal_list):
+        if len(userdata.goal_list) > 1:
             return 'next_goal'
         else:
-            ## MISIJA JE IZVRSENA!!!
+            rospy.sleep(10)
             return 'new_mission'

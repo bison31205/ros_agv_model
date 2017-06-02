@@ -2,7 +2,7 @@ import rospy
 import smach
 
 
-class ChangeSpeed(smach.StateMachine):
+class ChangeSpeed(smach.State):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['speed_changed'],

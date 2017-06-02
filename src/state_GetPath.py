@@ -7,26 +7,31 @@ from geometry_msgs.msg import PoseStamped
 class GetPath(smach.State):
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['follow_path'],
+                             outcomes=['path_received'],
                              input_keys=['robot', 'goal_list'],
-                             output_keys=['path', 'speed', 'segment_index'])
+                             output_keys=['path', 'segment_index', 'speed', 'trajectory'])
         self.pathReady = False
         self.path = Path()
 
     def plan_callback(self, path):
         self.path = path
-        self.pathReady= True
+        self.pathReady = True
         
     def execute(self, userdata):
-        pub_goal = rospy.Publisher(userdata.robot + "/goal", PoseStamped, queue_size=10)
+        pub_goal = rospy.Publisher(userdata.robot + "/goal", PoseStamped, queue_size=10, latch=True)
         sub_plan = rospy.Subscriber(userdata.robot + "/plan", Path, self.plan_callback)
 
+        rospy.loginfo("{"+userdata.robot+"} Waiting for path to goal")
+
         pub_goal.publish(userdata.goal_list[0])
-        
+
         while not self.pathReady:
             pass
 
-        userdata.segment_index = 0
+        rospy.loginfo("{" + userdata.robot + "} Path received")
+
         userdata.path = self.path
-        userdata.speed = dict()
+        userdata.segment_index = 0
+        userdata.speed = []
+        userdata.trajectory = []
         return 'path_received'

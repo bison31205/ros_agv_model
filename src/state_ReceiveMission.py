@@ -3,11 +3,11 @@ import smach
 from geometry_msgs.msg import PoseStamped
 
 
-class ReceiveMission(smach.StateMachine):
+class ReceiveMission(smach.State):
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['ready'],
-                             input_keys=['robot'],
+                             outcomes=['mission_received'],
+                             input_keys=['robot', 'goal_list'],
                              output_keys=['goal_list'])
         self.missionReady = False
         self.mission = PoseStamped()
@@ -19,8 +19,12 @@ class ReceiveMission(smach.StateMachine):
     def execute(self, userdata):
         sub_mission = rospy.Subscriber(userdata.robot + '/mission', PoseStamped, self.mission_callback)
 
+        rospy.loginfo("{"+userdata.robot+"} Waiting for mission")
+
         while not self.missionReady:
             pass
+
+        rospy.loginfo("{"+userdata.robot+"} Mission received")
 
         userdata.goal_list.append(self.mission)
         return 'mission_received'

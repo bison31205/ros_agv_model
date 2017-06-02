@@ -3,6 +3,7 @@
 import rospy
 import smach
 
+from nav_msgs.msg import Odometry
 
 from state_Start import Start
 from state_ProcessMap import ProcessMap
@@ -19,16 +20,19 @@ from state_GoalAssigment import GoalAssigment
 
 class RobotModel():
     def __init__(self):
-        rospy.init_node("robot_node")
+        rospy.init_node("robot_node", log_level=rospy.INFO)
         self.robot = rospy.get_param('name')
-        
-        print self.robot
-        
+
         # Create a SMACH state machine
         self.sm = smach.StateMachine(outcomes=['END'])
         self.sm.userdata.robot = self.robot
-        self.sm.userdata.sampling_time = 5  # seconds
+        self.sm.userdata.segment_time = 5  # seconds
         self.sm.userdata.max_speed = 0.15  # m/s
+        self.sm.userdata.goal_list = []
+        self.sm.userdata.odom = Odometry()
+
+        # Create SM subscribers
+        self.odom_sub = rospy.Subscriber(self.robot + '/odom', Odometry, self.odom_callback, queue_size=1)
 
         # Open the container
         with self.sm:
@@ -51,7 +55,7 @@ class RobotModel():
                                                 'next_segment': 'CheckClearance'})
             smach.StateMachine.add('GoalAssigment', GoalAssigment(),
                                    transitions={'next_goal': 'CalcTrajectory',
-                                                'new_mission' : 'ReceiveMission'})
+                                                'new_mission': 'ReceiveMission'})
 
             smach.StateMachine.add('ConflictResolver', ConflictResolver(),
                                    transitions={'just_drive': 'Driving',
@@ -61,6 +65,9 @@ class RobotModel():
                                    transitions={'goal_added': 'GetPath'})
             smach.StateMachine.add('ChangeSpeed', ChangeSpeed(),
                                    transitions={'speed_changed': 'CalcTrajectory'})
+
+    def odom_callback(self, data):
+        self.sm.userdata.odom = data
 
     def start(self):
         self.sm.execute()

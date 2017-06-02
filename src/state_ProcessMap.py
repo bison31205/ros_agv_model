@@ -2,10 +2,10 @@ import rospy
 import smach
 
 
-class ProcessMap(smach.StateMachine):
+class ProcessMap(smach.State):
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['ready'],
+                             outcomes=['map_segmented'],
                              input_keys=['map'],
                              output_keys=['zones'])
 
