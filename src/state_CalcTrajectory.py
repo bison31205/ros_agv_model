@@ -65,6 +65,7 @@ class CalcTrajectory(smach.State):
         return trajectory
 
     def execute(self, userdata):
+        rospy.loginfo(len(userdata.path.poses))
         if len(userdata.speed) == 0:
             [userdata.trajectory, userdata.speed] = self.prepare_new_trajectory(userdata.path,
                                                                                 userdata.max_speed,

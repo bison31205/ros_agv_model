@@ -19,12 +19,12 @@ class GetPath(smach.State):
         
     def execute(self, userdata):
         pub_goal = rospy.Publisher(userdata.robot + "/goal", PoseStamped, queue_size=10, latch=True)
-        sub_plan = rospy.Subscriber(userdata.robot + "/plan", Path, self.plan_callback)
-
-        rospy.loginfo("{"+userdata.robot+"} Waiting for path to goal")
-
         pub_goal.publish(userdata.goal_list[0])
 
+        rospy.sleep(1)
+
+        sub_plan = rospy.Subscriber(userdata.robot + "/plan", Path, self.plan_callback)
+        rospy.loginfo("{" + userdata.robot + "} Waiting for path to goal")
         while not self.pathReady:
             pass
 

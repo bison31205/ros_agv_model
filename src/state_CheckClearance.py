@@ -14,7 +14,8 @@ class CheckClearance(smach.State):
     def check_distance(odom, end):
         dist = math.sqrt((odom.position.x - end.position.x) ** 2 +
                          (odom.position.y - end.position.y) ** 2)
-        return True if dist < 0.05 else False
+
+        return True if dist < 0.15 else False
 
     def execute(self, userdata):
         while not self.check_distance(userdata.odom.pose.pose,
