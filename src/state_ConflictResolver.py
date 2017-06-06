@@ -1,5 +1,6 @@
 import rospy
 import smach
+import math
 
 
 class ConflictResolver(smach.State):
@@ -12,7 +13,7 @@ class ConflictResolver(smach.State):
     @staticmethod
     def n_sphere(self, feat, weight, param):
         dist = 0
-        for f, w, p in itertools.izip(feat[1:], weight[1:], param[1:]):
+        for f, w, p in zip(feat[1:], weight[1:], param[1:]):
             dist += (f * w - p) ** 2
         dist = math.sqrt(dist)
         if dist <= param[0]:
@@ -21,5 +22,6 @@ class ConflictResolver(smach.State):
             return 'NaN'
 
     def execute(self, userdata):
+        rospy.sleep(60)
         return 'just_drive'
 

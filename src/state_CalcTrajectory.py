@@ -9,8 +9,19 @@ class CalcTrajectory(smach.State):
         smach.State.__init__(self,
                              outcomes=['trajectory_created'],
                              input_keys=['path', 'speed', 'max_speed',
-                                         'segment_time', 'trajectory'],
-                             output_keys=['trajectory', 'speed'])
+                                         'segment_time', 'trajectory',
+                                         'pub_trajectory'],
+                             output_keys=['trajectory', 'speed',
+                                          'pub_trajectory'])
+
+    @staticmethod
+    def publish_active_path(userdata):
+        pub_traj = Path()
+        pub_traj.header.frame_id = 'world'
+        for path in userdata.trajectory:
+            pub_traj.poses += path.poses
+
+        userdata.pub_trajectory.publish(pub_traj)
 
     @staticmethod
     def prepare_new_trajectory(path, max_speed, segment_time):
@@ -65,7 +76,6 @@ class CalcTrajectory(smach.State):
         return trajectory
 
     def execute(self, userdata):
-        rospy.loginfo(len(userdata.path.poses))
         if len(userdata.speed) == 0:
             [userdata.trajectory, userdata.speed] = self.prepare_new_trajectory(userdata.path,
                                                                                 userdata.max_speed,
@@ -74,4 +84,5 @@ class CalcTrajectory(smach.State):
             userdata.trajectory = self.recalculate_trajectory(userdata.trajectory,
                                                               userdata.speed)
 
+        self.publish_active_path(userdata)
         return 'trajectory_created'

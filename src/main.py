@@ -5,6 +5,8 @@ import smach
 
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PoseStamped
+from nav_msgs.msg import Path
+from geometry_msgs.msg import Twist
 
 
 from state_Start import Start
@@ -23,19 +25,40 @@ class RobotModel():
     def __init__(self):
         rospy.init_node("robot_node", log_level=rospy.INFO)
         self.robot = rospy.get_param('name')
+        self.robot_list = rospy.get_param('robot_list')
+
+        self.sub_robot_traj = dict()
+        self.sub_rovot_feat = dict()
 
         # Create a SMACH state machine
         self.sm = smach.StateMachine(outcomes=['END'])
         self.sm.userdata.robot = self.robot
+        self.sm.userdata.robot_list = self.robot_list
         self.sm.userdata.segment_time = 5  # seconds
         self.sm.userdata.max_speed = 0.15  # m/s
         self.sm.userdata.goal_list = []
         self.sm.userdata.goal_counter = [0, 0]
         self.sm.userdata.odom = Odometry()
+        self.sm.userdata.path_ready = False
+        self.sm.userdata.other_robots_trajectories = dict()
 
         # Create SM subscribers
         self.odom_sub = rospy.Subscriber(self.robot + '/odom', Odometry, self.odom_callback, queue_size=1)
         self.goal_sub = rospy.Subscriber(self.robot + '/mission', PoseStamped, self.mission_callback, queue_size=1)
+        self.path_sub = rospy.Subscriber(self.robot + '/plan', Path, self.plan_callback, queue_size=1)
+        for robot in self.robot_list:
+            self.sm.userdata.other_robots_trajectories[robot] = Path()
+            self.sub_robot_trajectories = rospy.Subscriber("trajectories/" + robot,
+                                                           Path, self.trajectories_callback, robot, queue_size=1)
+            # self.sub_robot_feat = rospy.Subscriber("features/" + robot,
+            #                                       ?????, self.plan_callback, robot, queue_size=1)
+
+        # Create SM publishers
+        self.sm.userdata.pub_goal = rospy.Publisher(self.robot + "/goal", PoseStamped, queue_size=10, latch=True)
+        self.sm.userdata.pub_speed = rospy.Publisher(self.robot + "/cmd_vel", Twist, queue_size=10, latch=True)
+        self.sm.userdata.pub_path = rospy.Publisher(self.robot + "/follow_path", Path, queue_size=10, latch=True)
+        self.sm.userdata.pub_trajectory = rospy.Publisher("trajectories/" + self.robot, Path, queue_size=10, latch=True)
+        # self.sm.userdata.pub_features = rospy.Publisher("features/" + self.robot, ?????, queue_size=10, latch=True)
 
         # Open the container
         with self.sm:
@@ -71,6 +94,13 @@ class RobotModel():
     def mission_callback(self, data):
         self.sm.userdata.goal_list.append(data)
         self.sm.userdata.goal_counter[0] += 1
+
+    def plan_callback(self, path):
+        self.sm.userdata.path = path
+        self.sm.userdata.path_ready = True
+
+    def trajectories_callback(self, data, robot):
+        self.sm.userdata.other_robots_trajectories[robot] = data
 
     def start(self):
         self.sm.execute()

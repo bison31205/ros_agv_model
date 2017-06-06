@@ -10,19 +10,18 @@ class Driving(smach.State):
                              outcomes=['goal_reached', 'next_segment'],
                              input_keys=['robot', 'trajectory', 'segment_index',
                                          'speed', 'max_speed',
-                                         'goal_counter', 'goal_list'],
+                                         'goal_counter', 'goal_list',
+                                         'pub_speed', 'pub_path'],
                              output_keys=['trajectory', 'segment_index',
-                                          'goal_counter', 'goal_list'])
+                                          'goal_counter', 'goal_list',
+                                          'pub_speed', 'pub_path'])
 
     def execute(self, userdata):
-        speed_pub = rospy.Publisher(userdata.robot + "/cmd_vel", Twist, queue_size=10, latch=True)
-        path_pub = rospy.Publisher(userdata.robot + "/follow_path", Path, queue_size=10, latch=True)
-
         cmd_vel = Twist()
         cmd_vel.linear.x = userdata.speed[userdata.segment_index]
 
-        speed_pub.publish(cmd_vel)
-        path_pub.publish(userdata.trajectory[userdata.segment_index])
+        userdata.pub_speed.publish(cmd_vel)
+        userdata.pub_path.publish(userdata.trajectory[userdata.segment_index])
         userdata.segment_index += 1
 
         if userdata.segment_index == len(userdata.trajectory):
