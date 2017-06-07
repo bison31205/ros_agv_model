@@ -21,10 +21,9 @@ class CheckClearance(smach.State):
                              input_keys=['trajectory', 'segment_index', 'odom',
                                          'other_robots_trajectories',
                                          'robot_list', 'robot'],
-                             output_keys=['trajectory', 'conflict_features'])
+                             output_keys=['trajectory', 'conflict_features', 'robot_conflict'])
         self.stop_thread = False
         self.conflict = False
-        self.conflict_robot = 'dummy'
 
     @staticmethod
     def check_distance(odom, end):
@@ -52,7 +51,7 @@ class CheckClearance(smach.State):
                     if robot_time >= current_time:
                         robot_time_index[robot] = k
                         break
-                robot_time_index[robot] = len(userdata.other_robots_trajectories[robot].poses) - 1
+                    robot_time_index[robot] = len(userdata.other_robots_trajectories[robot].poses) - 1
 
             while robot_time_index[userdata.robot] < len(userdata.other_robots_trajectories[userdata.robot].poses):
                 robot_pose = userdata.other_robots_trajectories[userdata.robot].poses[robot_time_index[userdata.robot]].pose
@@ -66,7 +65,7 @@ class CheckClearance(smach.State):
 
                     if dist < 0.5:
                         self.conflict = True
-                        self.conflict_robot = robot
+                        userdata.robot_conflict = robot
                         break
 
                     if robot_time_index[robot] + 1 < len(userdata.other_robots_trajectories[robot].poses):
@@ -94,7 +93,6 @@ class CheckClearance(smach.State):
 
         # If there is conflict, resolve it, otherwise publish next segment
         if self.conflict:
-            print self.conflict_robot
             return 'conflict'
         else:
             return 'OK_clearance'

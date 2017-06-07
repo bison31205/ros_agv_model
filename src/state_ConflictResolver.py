@@ -7,7 +7,7 @@ class ConflictResolver(smach.State):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['just_drive', 'change_speed', 'change_path'],
-                             input_keys=['map'],
+                             input_keys=['map', 'robot_conflict'],
                              output_keys=['zones'])
 
     @staticmethod
@@ -22,6 +22,7 @@ class ConflictResolver(smach.State):
             return 'NaN'
 
     def execute(self, userdata):
+        print userdata.robot_conflict
         rospy.sleep(60)
         return 'just_drive'
 
