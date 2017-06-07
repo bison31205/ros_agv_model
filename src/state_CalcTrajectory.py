@@ -31,20 +31,20 @@ class CalcTrajectory(smach.State):
         new_segment = Path()
         new_segment.header.frame_id = 'world'
         pose_old = path.poses[0]
-        last_time = rospy.get_time()
+        time_old = rospy.get_time()
 
         for pose in path.poses[1:]:
             dist = math.sqrt((pose_old.pose.position.x - pose.pose.position.x) ** 2 +
                              (pose_old.pose.position.y - pose.pose.position.y) ** 2)
 
-            next_pose_time = dist / max_speed
+            time_next_pose = dist / max_speed
 
-            last_time += next_pose_time
+            time_old += time_next_pose
             new_segment.poses.append(pose)
             new_segment.poses[-1].header.seq = len(new_segment.poses) - 1
-            new_segment.poses[-1].header.stamp = rospy.Time.from_sec(last_time)
+            new_segment.poses[-1].header.stamp = rospy.Time.from_sec(time_old)
 
-            if spent_time + next_pose_time > segment_time or pose == path.poses[-1]:
+            if spent_time + time_next_pose > segment_time or pose == path.poses[-1]:
                 trajectory.append(new_segment)
                 speed.append(max_speed)
 
@@ -52,14 +52,15 @@ class CalcTrajectory(smach.State):
                 new_segment.header.frame_id = 'world'
                 spent_time = 0
             else:
-                spent_time += next_pose_time
+                spent_time += time_next_pose
 
             pose_old = pose
         return [trajectory, speed]
 
     @staticmethod
     def recalculate_trajectory(trajectory, speed):
-        last_time = rospy.get_time()
+        time_old = (trajectory[0].poses[0].stamp.secs +
+                    trajectory[0].poses[0].stamp.nsecs / 1e9)
         pose_old = trajectory[0].poses[0]
 
         for segment, seg_speed in (trajectory, speed):
@@ -69,8 +70,8 @@ class CalcTrajectory(smach.State):
 
                 next_pose_time = dist / seg_speed
 
-                last_time += next_pose_time
-                pose.stamp = rospy.Time.from_sec(last_time)
+                time_old += next_pose_time
+                pose.stamp = rospy.Time.from_sec(time_old)
 
                 pose_old = pose
         return trajectory

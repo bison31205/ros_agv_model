@@ -65,6 +65,9 @@ class CheckClearance(smach.State):
 
                     if dist < 0.5:
                         self.conflict = True
+                        print robot_pose.position
+                        print temp_pose.position
+
                         userdata.robot_conflict = robot
                         break
 

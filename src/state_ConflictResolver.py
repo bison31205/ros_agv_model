@@ -23,6 +23,6 @@ class ConflictResolver(smach.State):
 
     def execute(self, userdata):
         print userdata.robot_conflict
-        rospy.sleep(60)
+        #rospy.sleep(60)
         return 'just_drive'
 
