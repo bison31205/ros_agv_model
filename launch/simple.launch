@@ -2,8 +2,9 @@
   <arg name="robot_name" />
   <arg name="init_pose" />
   <arg name="output" />
+  <arg name="map_file" />
   
-  <node pkg="map_server" type="map_server" name="$(arg robot_name)_map_server" args="$(find lattice_planner)/maps/empty.yaml">
+  <node pkg="map_server" type="map_server" name="$(arg robot_name)_map_server" args="$(arg map_file)">
     <remap from="map" to="$(arg robot_name)/map" />
   </node>   
   <node pkg="tf2_ros" type="static_transform_publisher" name="$(arg robot_name)_link_broadcaster_map" args="0 0 0 0 0 0 1 world $(arg robot_name)/map" />

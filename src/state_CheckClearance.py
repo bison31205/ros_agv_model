@@ -1,7 +1,8 @@
 import smach
-import rospy
 import math
 import threading
+
+from msg_pkg.msg import Features
 
 
 class FuncThread(threading.Thread):
@@ -19,9 +20,10 @@ class CheckClearance(smach.State):
         smach.State.__init__(self,
                              outcomes=['conflict', 'OK_clearance'],
                              input_keys=['trajectory', 'segment_index', 'odom',
-                                         'other_robots_trajectories',
-                                         'robot_list', 'robot'],
-                             output_keys=['trajectory', 'conflict_features', 'robot_conflict'])
+                                         'robots_trajectories', 'goal_time',
+                                         'robot_list', 'robot', 'pub_features'],
+                             output_keys=['trajectory', 'conflict_features',
+                                          'robot_conflict', 'pub_features'])
         self.stop_thread = False
         self.conflict = False
 
@@ -31,6 +33,20 @@ class CheckClearance(smach.State):
                          (odom.position.y - end.position.y) ** 2)
 
         return True if dist < 0.15 else False
+
+    @staticmethod
+    def publish_features(userdata):
+        # [Current goal time
+        #  Current map segment type
+        #  ????]
+        current_time = (userdata.trajectory[userdata.segment_index].poses[0].header.stamp.secs +
+                        userdata.trajectory[userdata.segment_index].poses[0].header.stamp.nsecs / 1e9)
+
+        features = Features()
+        features.features += [current_time - userdata.goal_time,  # Current goal time
+                              0.0]  # Current map segment type
+
+        userdata.pub_features.publish(features)
 
     def check_for_conflicts(self, userdata):
         self.conflict = False
@@ -45,21 +61,21 @@ class CheckClearance(smach.State):
 
             for robot in userdata.robot_list:
 
-                for (k, pose) in zip(xrange(len(userdata.other_robots_trajectories[robot].poses)),
-                                     userdata.other_robots_trajectories[robot].poses):
+                for (k, pose) in zip(xrange(len(userdata.robots_trajectories[robot].poses)),
+                                     userdata.robots_trajectories[robot].poses):
                     robot_time = pose.header.stamp.secs + pose.header.stamp.nsecs / 1e9
                     if robot_time >= current_time:
                         robot_time_index[robot] = k
                         break
-                    robot_time_index[robot] = len(userdata.other_robots_trajectories[robot].poses) - 1
+                    robot_time_index[robot] = len(userdata.robots_trajectories[robot].poses) - 1
 
-            while robot_time_index[userdata.robot] < len(userdata.other_robots_trajectories[userdata.robot].poses):
-                robot_pose = userdata.other_robots_trajectories[userdata.robot].poses[robot_time_index[userdata.robot]].pose
+            while robot_time_index[userdata.robot] < len(userdata.robots_trajectories[userdata.robot].poses):
+                robot_pose = userdata.robots_trajectories[userdata.robot].poses[robot_time_index[userdata.robot]].pose
                 for robot in userdata.robot_list:
                     if robot == userdata.robot:
                         continue
 
-                    temp_pose = userdata.other_robots_trajectories[robot].poses[robot_time_index[robot]].pose
+                    temp_pose = userdata.robots_trajectories[robot].poses[robot_time_index[robot]].pose
                     dist = math.sqrt((robot_pose.position.x - temp_pose.position.x) ** 2 +
                                      (robot_pose.position.y - temp_pose.position.y) ** 2)
 
@@ -71,7 +87,7 @@ class CheckClearance(smach.State):
                         userdata.robot_conflict = robot
                         break
 
-                    if robot_time_index[robot] + 1 < len(userdata.other_robots_trajectories[robot].poses):
+                    if robot_time_index[robot] + 1 < len(userdata.robots_trajectories[robot].poses):
                         robot_time_index[robot] += 1
 
                 if self.conflict:
@@ -79,6 +95,9 @@ class CheckClearance(smach.State):
                 robot_time_index[userdata.robot] += 1
 
     def execute(self, userdata):
+        # Update and publish features vector
+        self.publish_features(userdata)
+
         # Start parallel thread which checks for conflicts
         conflict_thread = FuncThread(self.check_for_conflicts, userdata)
         self.stop_thread = False
