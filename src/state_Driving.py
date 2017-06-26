@@ -8,23 +8,38 @@ class Driving(smach.State):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['goal_reached', 'next_segment'],
-                             input_keys=['robot', 'trajectory', 'segment_index',
+                             input_keys=['robot', 'trajectory',
                                          'speed', 'max_speed',
                                          'goal_counter', 'goal_list',
-                                         'pub_speed', 'pub_path'],
-                             output_keys=['trajectory', 'segment_index',
+                                         'pub_speed', 'pub_path', 'pub_trajectory'],
+                             output_keys=['trajectory', 'speed'
                                           'goal_counter', 'goal_list',
-                                          'pub_speed', 'pub_path'])
+                                          'pub_speed', 'pub_path', 'pub_trajectory'])
+
+    @staticmethod
+    def publish_active_path(userdata):
+        pub_traj = Path()
+        pub_traj.header.frame_id = 'world'
+        for path in userdata.trajectory:
+            pub_traj.poses += path.poses
+
+        userdata.pub_trajectory.publish(pub_traj)
 
     def execute(self, userdata):
         cmd_vel = Twist()
-        cmd_vel.linear.x = userdata.speed[userdata.segment_index]
+        cmd_vel.linear.x = userdata.speed[0]
+
+        print userdata.robot + " :: brzina segmenta: " + str(userdata.speed[0])
 
         userdata.pub_speed.publish(cmd_vel)
-        userdata.pub_path.publish(userdata.trajectory[userdata.segment_index])
-        userdata.segment_index += 1
+        userdata.pub_path.publish(userdata.trajectory[0])
 
-        if userdata.segment_index == len(userdata.trajectory):
+        userdata.trajectory.pop(0)
+        userdata.speed.pop(0)
+
+        self.publish_active_path(userdata)
+
+        if len(userdata.trajectory) == 0:
             userdata.goal_counter[1] += 1
             userdata.goal_list.pop(0)
             return 'goal_reached'

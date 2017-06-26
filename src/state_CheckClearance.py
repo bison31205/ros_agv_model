@@ -19,7 +19,7 @@ class CheckClearance(smach.State):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['conflict', 'OK_clearance'],
-                             input_keys=['trajectory', 'segment_index', 'odom',
+                             input_keys=['trajectory', 'odom',
                                          'robots_trajectories', 'goal_time',
                                          'robot_list', 'robot', 'pub_features',
                                          'map_segments'],
@@ -27,6 +27,7 @@ class CheckClearance(smach.State):
                                           'robot_conflict', 'pub_features',
                                           'map_segments'])
         self.stop_thread = False
+        self.first_pass_done = False
         self.conflict = False
 
     @staticmethod
@@ -41,7 +42,7 @@ class CheckClearance(smach.State):
         # [Current goal time
         #  Current map segment type
         #  ????]
-        current_pose = userdata.trajectory[userdata.segment_index].poses[0]
+        current_pose = userdata.trajectory[0].poses[0]
         current_time = (current_pose.header.stamp.secs +
                         current_pose.header.stamp.nsecs / 1e9)
 
@@ -56,50 +57,52 @@ class CheckClearance(smach.State):
 
     def check_for_conflicts(self, userdata):
         self.conflict = False
-        first_pass_done = False
-        while not (self.stop_thread and first_pass_done):
-            if not first_pass_done:
-                first_pass_done = True
-            robot_time_index = dict()
-            current_time = (userdata.trajectory[userdata.segment_index].poses[0].header.stamp.secs +
-                            userdata.trajectory[userdata.segment_index].poses[0].header.stamp.nsecs / 1e9)
-            # find point of trajectories which correspond current time
 
-            for robot in userdata.robot_list:
+        while not (self.stop_thread and self.first_pass_done):
+            if not self.first_pass_done:
+                self.first_pass_done = True
 
-                for (k, pose) in zip(xrange(len(userdata.robots_trajectories[robot].poses)),
-                                     userdata.robots_trajectories[robot].poses):
-                    robot_time = pose.header.stamp.secs + pose.header.stamp.nsecs / 1e9
-                    if robot_time >= current_time:
-                        robot_time_index[robot] = k
-                        break
-                    robot_time_index[robot] = len(userdata.robots_trajectories[robot].poses) - 1
+            current_time = (userdata.trajectory[0].poses[0].header.stamp.secs +
+                            userdata.trajectory[0].poses[0].header.stamp.nsecs / 1e9)
 
-            while robot_time_index[userdata.robot] < len(userdata.robots_trajectories[userdata.robot].poses):
-                robot_pose = userdata.robots_trajectories[userdata.robot].poses[robot_time_index[userdata.robot]].pose
+            old_index = dict()
+
+            for pose1 in userdata.robots_trajectories[userdata.robot].poses:
+                pose1_time = pose1.header.stamp.secs + pose1.header.stamp.nsecs / 1e9
+                # don't look at poses which are older than current time
+                if pose1_time < current_time:
+                    continue
+
+                # check with every robot if there is a conflict in 'pose'
                 for robot in userdata.robot_list:
                     if robot == userdata.robot:
                         continue
 
-                    temp_pose = userdata.robots_trajectories[robot].poses[robot_time_index[robot]].pose
-                    dist = math.sqrt((robot_pose.position.x - temp_pose.position.x) ** 2 +
-                                     (robot_pose.position.y - temp_pose.position.y) ** 2)
+                    if robot not in old_index:
+                        old_index[robot] = 0
 
-                    if dist < 0.5:
-                        self.conflict = True
-                        print robot_pose.position
-                        print temp_pose.position
+                    index = old_index[robot]
 
-                        userdata.robot_conflict = robot
-                        userdata.conflict_pose = robot_pose
-                        break
+                    for pose2 in userdata.robots_trajectories[robot].poses[old_index[robot]:]:
+                        pose2_time = pose2.header.stamp.secs + pose2.header.stamp.nsecs / 1e9
 
-                    if robot_time_index[robot] + 1 < len(userdata.robots_trajectories[robot].poses):
-                        robot_time_index[robot] += 1
+                        if abs(pose1_time - pose2_time) < 0.1:
+                            dist = math.sqrt((pose1.pose.position.x - pose2.pose.position.x) ** 2 +
+                                             (pose1.pose.position.y - pose2.pose.position.y) ** 2)
+                            if dist < 0.5:
+                                # print pose1.pose.position
+                                # print pose2.pose.position
 
-                if self.conflict:
-                    break
-                robot_time_index[userdata.robot] += 1
+                                userdata.robot_conflict = robot
+                                userdata.conflict_pose = pose1
+                                self.conflict = True
+                                return
+
+                        elif pose2_time > pose1_time:
+                            break
+                        else:
+                            old_index[robot] = index
+                            index += 1
 
     def execute(self, userdata):
         # Update and publish features vector
@@ -108,11 +111,12 @@ class CheckClearance(smach.State):
         # Start parallel thread which checks for conflicts
         conflict_thread = FuncThread(self.check_for_conflicts, userdata)
         self.stop_thread = False
+        self.first_pass_done = False
         conflict_thread.start()
 
         # Check if we are close enough to publish next segment
         while not self.check_distance(userdata.odom.pose.pose,
-                                      userdata.trajectory[userdata.segment_index].poses[0].pose):
+                                      userdata.trajectory[0].poses[0].pose):
             if self.conflict:
                 break
 

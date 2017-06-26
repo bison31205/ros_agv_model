@@ -10,7 +10,7 @@ class GetPath(smach.State):
                              input_keys=['robot', 'goal_list',
                                          'path_ready', 'path',
                                          'pub_goal'],
-                             output_keys=['segment_index', 'speed',
+                             output_keys=['speed',
                                           'trajectory', 'path_ready',
                                           'pub_goal'])
 
@@ -23,7 +23,6 @@ class GetPath(smach.State):
 
         rospy.loginfo("{" + userdata.robot + "} Path received")
 
-        userdata.segment_index = 0
         userdata.speed = []
         userdata.trajectory = []
         return 'path_received'

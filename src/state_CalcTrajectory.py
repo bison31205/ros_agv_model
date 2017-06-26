@@ -59,21 +59,32 @@ class CalcTrajectory(smach.State):
 
     @staticmethod
     def recalculate_trajectory(trajectory, speed):
-        time_old = (trajectory[0].poses[0].stamp.secs +
-                    trajectory[0].poses[0].stamp.nsecs / 1e9)
+        time_old = (trajectory[0].poses[0].header.stamp.secs +
+                    trajectory[0].poses[0].header.stamp.nsecs / 1e9)
         pose_old = trajectory[0].poses[0]
 
-        for segment, seg_speed in (trajectory, speed):
-            for pose in segment.poses[1:]:
-                dist = math.sqrt((pose_old.position.x - pose.position.x) ** 2 +
-                                 (pose_old.position.y - pose.position.y) ** 2)
+        index = 0
+
+        print (trajectory[-1].poses[-1].header.stamp.secs +
+               trajectory[-1].poses[-1].header.stamp.nsecs / 1e9)
+
+        for segment, seg_speed in zip(trajectory, speed):
+            for pose in segment.poses:
+                dist = math.sqrt((pose_old.pose.position.x - pose.pose.position.x) ** 2 +
+                                 (pose_old.pose.position.y - pose.pose.position.y) ** 2)
 
                 next_pose_time = dist / seg_speed
 
                 time_old += next_pose_time
-                pose.stamp = rospy.Time.from_sec(time_old)
+                pose.header.stamp = rospy.Time.from_sec(time_old)
 
                 pose_old = pose
+
+            index += 1
+
+        print (trajectory[-1].poses[-1].header.stamp.secs +
+               trajectory[-1].poses[-1].header.stamp.nsecs / 1e9)
+
         return trajectory
 
     def execute(self, userdata):

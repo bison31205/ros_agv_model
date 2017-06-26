@@ -6,8 +6,9 @@ class ConflictResolver(smach.State):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['just_drive', 'change_speed', 'change_path', 'NaN'],
-                             input_keys=['robot', 'robot_conflict',
-                                         'robot_data', 'robots_features'],
+                             input_keys=['robot', 'robot_conflict', 'conflict_pose',
+                                         'robot_data', 'robots_features',
+                                  'odom', 'trajectory'],
                              output_keys=['zones'])
 
     @staticmethod
@@ -21,8 +22,15 @@ class ConflictResolver(smach.State):
         else:
             return 'NaN'
 
+    @staticmethod
+    def check_distance(odom, end):
+        dist = math.sqrt((odom.position.x - end.position.x) ** 2 +
+                         (odom.position.y - end.position.y) ** 2)
+
+        return True if dist < 0.15 else False
+
     def execute(self, userdata):
-        print userdata.robot_conflict
+        # print userdata.robot_conflict, userdata.conflict_pose
         best_outcome = 'NaN'
         best_dist = 0
         for outcome in userdata.robot_data:
@@ -37,5 +45,13 @@ class ConflictResolver(smach.State):
                     best_outcome = outcome
                     best_dist = new_dist
 
-        return best_outcome
+
+# ZA TESTIRRANJE  ˇˇˇˇˇˇ
+        if userdata.robot == "mirko":
+            while not self.check_distance(userdata.odom.pose.pose,
+                                          userdata.trajectory[0].poses[0].pose):
+                pass
+            return 'just_drive'
+        else:
+            return 'change_speed'
 

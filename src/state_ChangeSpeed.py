@@ -6,7 +6,7 @@ class ChangeSpeed(smach.State):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['speed_changed'],
-                             input_keys=['conflict_pose', 'speed',
+                             input_keys=['conflict_pose', 'speed', 'robot',
                                          'trajectory', 'map_segments'],
                              output_keys=['map_segments', 'speed'])
 
@@ -18,7 +18,7 @@ class ChangeSpeed(smach.State):
             else [pose2.y, pose1.y]
         
         if (((pose_c.x > tx1) and (pose_c.x < tx2)) and
-                    ((pose_c.y > ty1) and (pose_c.y < ty2))):
+                ((pose_c.y > ty1) and (pose_c.y < ty2))):
             return True
         else:
             return False
@@ -29,9 +29,9 @@ class ChangeSpeed(smach.State):
         best_seg_val = 5
         
         for (segment, seg_speed) in zip(userdata.trajectory, userdata.speed):
-            position1 = segment.poses[0].pose
-            position2 = segment.poses[-1].pose
-            if self.in_segment(userdata.conflict_pose.position, position1, position2):
+            position1 = segment.poses[0].pose.position
+            position2 = segment.poses[-1].pose.position
+            if self.in_segment(userdata.conflict_pose.pose.position, position1, position2):
                 break
             
             p1_val = userdata.map_segments.find_segment(position1.x, position2.y)
@@ -49,6 +49,8 @@ class ChangeSpeed(smach.State):
             index += 1
 
         userdata.speed[best_index] /= 2
+
+        print userdata.robot, userdata.speed
             
         return 'speed_changed'
 
