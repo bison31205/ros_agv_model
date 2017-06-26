@@ -21,9 +21,11 @@ class CheckClearance(smach.State):
                              outcomes=['conflict', 'OK_clearance'],
                              input_keys=['trajectory', 'segment_index', 'odom',
                                          'robots_trajectories', 'goal_time',
-                                         'robot_list', 'robot', 'pub_features'],
-                             output_keys=['trajectory', 'conflict_features',
-                                          'robot_conflict', 'pub_features'])
+                                         'robot_list', 'robot', 'pub_features',
+                                         'map_segments'],
+                             output_keys=['trajectory', 'conflict_pose',
+                                          'robot_conflict', 'pub_features',
+                                          'map_segments'])
         self.stop_thread = False
         self.conflict = False
 
@@ -39,12 +41,16 @@ class CheckClearance(smach.State):
         # [Current goal time
         #  Current map segment type
         #  ????]
-        current_time = (userdata.trajectory[userdata.segment_index].poses[0].header.stamp.secs +
-                        userdata.trajectory[userdata.segment_index].poses[0].header.stamp.nsecs / 1e9)
+        current_pose = userdata.trajectory[userdata.segment_index].poses[0]
+        current_time = (current_pose.header.stamp.secs +
+                        current_pose.header.stamp.nsecs / 1e9)
+
+        current_segment = userdata.map_segments.find_segment(current_pose.pose.position.x,
+                                                             current_pose.pose.position.y)
 
         features = Features()
         features.features += [current_time - userdata.goal_time,  # Current goal time
-                              0.0]  # Current map segment type
+                              current_segment]  # Current map segment type
 
         userdata.pub_features.publish(features)
 
@@ -85,6 +91,7 @@ class CheckClearance(smach.State):
                         print temp_pose.position
 
                         userdata.robot_conflict = robot
+                        userdata.conflict_pose = robot_pose
                         break
 
                     if robot_time_index[robot] + 1 < len(userdata.robots_trajectories[robot].poses):

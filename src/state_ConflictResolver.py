@@ -26,13 +26,14 @@ class ConflictResolver(smach.State):
         best_outcome = 'NaN'
         best_dist = 0
         for outcome in userdata.robot_data:
+
             new_dist = self.n_sphere(userdata.robots_features[userdata.robot].features,
                                      userdata.robots_features[userdata.robot_conflict].features,
                                      userdata.robot_data[outcome]["weight"],
                                      userdata.robot_data[outcome]["param"])
             if new_dist == 'NaN':
                 pass
-            elif best_outcome == 'Nan' or new_dist < best_dist:
+            elif best_outcome == 'NaN' or new_dist < best_dist:
                     best_outcome = outcome
                     best_dist = new_dist
 

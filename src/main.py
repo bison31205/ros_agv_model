@@ -33,7 +33,6 @@ class RobotModel:
         self.sub_robot_traj = dict()
         self.sub_robot_feat = dict()
 
-
         # Create a SMACH state machine
         self.sm = smach.StateMachine(outcomes=['END'])
         self.sm.userdata.robot = self.robot
