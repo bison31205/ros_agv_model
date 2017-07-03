@@ -46,7 +46,7 @@ class ConflictResolver(smach.State):
                     best_dist = new_dist
 
 
-# ZA TESTIRRANJE  ˇˇˇˇˇˇ
+# ZA TESTIRRANJE
         if userdata.robot == "mirko":
             while not self.check_distance(userdata.odom.pose.pose,
                                           userdata.trajectory[0].poses[0].pose):

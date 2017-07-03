@@ -1,6 +1,5 @@
 import rospy
 import smach
-from geometry_msgs.msg import PoseStamped
 
 
 class GetPath(smach.State):

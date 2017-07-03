@@ -38,7 +38,7 @@ class RobotModel:
         self.sm.userdata.robot = self.robot
         self.sm.userdata.robot_list = self.robot_list
         self.sm.userdata.robot_data = []
-        self.sm.userdata.segment_time = 5  # seconds
+        self.sm.userdata.segment_time = 2.5  # seconds
         self.sm.userdata.max_speed = 0.15  # m/s
         self.sm.userdata.goal_list = []
         self.sm.userdata.goal_counter = [0, 0]

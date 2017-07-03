@@ -10,7 +10,7 @@ class CalcTrajectory(smach.State):
                              outcomes=['trajectory_created'],
                              input_keys=['path', 'speed', 'max_speed',
                                          'segment_time', 'trajectory',
-                                         'pub_trajectory'],
+                                         'pub_trajectory', 'robot'],
                              output_keys=['trajectory', 'speed',
                                           'pub_trajectory'])
 
@@ -65,9 +65,6 @@ class CalcTrajectory(smach.State):
 
         index = 0
 
-        print (trajectory[-1].poses[-1].header.stamp.secs +
-               trajectory[-1].poses[-1].header.stamp.nsecs / 1e9)
-
         for segment, seg_speed in zip(trajectory, speed):
             for pose in segment.poses:
                 dist = math.sqrt((pose_old.pose.position.x - pose.pose.position.x) ** 2 +
@@ -82,9 +79,6 @@ class CalcTrajectory(smach.State):
 
             index += 1
 
-        print (trajectory[-1].poses[-1].header.stamp.secs +
-               trajectory[-1].poses[-1].header.stamp.nsecs / 1e9)
-
         return trajectory
 
     def execute(self, userdata):
@@ -97,4 +91,5 @@ class CalcTrajectory(smach.State):
                                                               userdata.speed)
 
         self.publish_active_path(userdata)
+        print userdata.robot, userdata.speed
         return 'trajectory_created'

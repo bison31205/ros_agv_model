@@ -41,13 +41,13 @@ class CheckClearance(smach.State):
     def publish_features(userdata):
         # [Current goal time
         #  Current map segment type
-        #  ????]
+        #  Average map segment type]
         current_pose = userdata.trajectory[0].poses[0]
         current_time = (current_pose.header.stamp.secs +
                         current_pose.header.stamp.nsecs / 1e9)
 
-        current_segment = userdata.map_segments.find_segment(current_pose.pose.position.x,
-                                                             current_pose.pose.position.y)
+        current_segment = userdata.map_segments.get_segment_value(current_pose.pose.position.x,
+                                                                  current_pose.pose.position.y)
 
         features = Features()
         features.features += [current_time - userdata.goal_time,  # Current goal time

@@ -1,4 +1,3 @@
-import rospy
 import smach
 
 
@@ -6,7 +5,7 @@ class ChangeSpeed(smach.State):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['speed_changed'],
-                             input_keys=['conflict_pose', 'speed', 'robot',
+                             input_keys=['conflict_pose', 'speed',
                                          'trajectory', 'map_segments'],
                              output_keys=['map_segments', 'speed'])
 
@@ -34,23 +33,22 @@ class ChangeSpeed(smach.State):
             if self.in_segment(userdata.conflict_pose.pose.position, position1, position2):
                 break
             
-            p1_val = userdata.map_segments.find_segment(position1.x, position2.y)
-            p2_val = userdata.map_segments.find_segment(position1.x, position2.y)
+            p1_val = userdata.map_segments.get_segment_value(position1.x, position2.y)
+            p2_val = userdata.map_segments.get_segment_value(position1.x, position2.y)
             p_val_max = p1_val if p1_val < p2_val else p2_val
 
             if p_val_max < best_seg_val:
                 best_index = index
                 best_seg_val = p_val_max
-            elif p_val_max == best_seg_val:
-                if userdata.speed[index] > userdata.speed[best_index]:
-                    best_index = index
-                    best_seg_val = p_val_max
+            # This part of idea is not working as it should currently
+            # elif p_val_max == best_seg_val:
+            #    if userdata.speed[index] > userdata.speed[best_index]:
+            #        best_index = index
+            #        best_seg_val = p_val_max
 
             index += 1
 
-        userdata.speed[best_index] /= 2
+        userdata.speed[best_index] *= 0.75
 
-        print userdata.robot, userdata.speed
-            
         return 'speed_changed'
 
