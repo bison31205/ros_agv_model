@@ -17,7 +17,7 @@ class GoalAssignment(smach.State):
         # wait for new missions if none are available
         waiting_time_start = rospy.get_time()
         while len(userdata.goal_list) == 0:
-            if (rospy.get_time() - waiting_time_start) > 60:  # in seconds
+            if userdata.goal_counter[0] != 0 and (rospy.get_time() - waiting_time_start) > 60:  # in seconds
                 return 'no_new_goals'
             pass
 
