@@ -8,8 +8,8 @@ class ConflictResolver(smach.State):
                              outcomes=['just_drive', 'change_speed', 'change_path', 'NaN'],
                              input_keys=['robot', 'robot_conflict', 'conflict_pose',
                                          'robot_data', 'robots_features',
-                                  'odom', 'trajectory'],
-                             output_keys=['zones'])
+                                         'odom', 'trajectory', 'map_segments'],
+                             output_keys=['map_segments'])
 
     @staticmethod
     def n_sphere(feat_1, feat_2, weight, param):
@@ -53,5 +53,9 @@ class ConflictResolver(smach.State):
                 pass
             return 'just_drive'
         else:
-            return 'change_speed'
+            if userdata.map_segments.get_segment_value(userdata.conflict_pose.pose.position.x,
+                                                       userdata.conflict_pose.pose.position.y) == 1:
+                return 'change_speed'
+            else:
+                return 'change_path'
 

@@ -22,6 +22,7 @@ class CalcTrajectory(smach.State):
             pub_traj.poses += path.poses
 
         userdata.pub_trajectory.publish(pub_traj)
+        rospy.sleep(1)
 
     @staticmethod
     def prepare_new_trajectory(path, max_speed, segment_time):
@@ -91,5 +92,5 @@ class CalcTrajectory(smach.State):
                                                               userdata.speed)
 
         self.publish_active_path(userdata)
-        print userdata.robot, userdata.speed
+        # print userdata.robot, userdata.speed
         return 'trajectory_created'

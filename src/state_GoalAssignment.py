@@ -8,7 +8,6 @@ class GoalAssignment(smach.State):
                              outcomes=['next_goal', 'no_new_goals'],
                              input_keys=['goal_list', 'odom', 'goal_counter'],
                              output_keys=['goal_time'])
-        self.goal_index = -1
 
     def execute(self, userdata):
         # wait for robot to stop (velocity = 0)
@@ -22,8 +21,11 @@ class GoalAssignment(smach.State):
                 return 'no_new_goals'
             pass
 
-        # reset time counter if we completed mission
-        if self.goal_index != userdata.goal_counter[1]:
+        # reset time counter if next goal is also a mission
+        all_goals = userdata.goal_counter[0]
+        done_goals = userdata.goal_counter[1]
+        active_goals = len(userdata.goal_list)
+        if all_goals == done_goals + active_goals:
             userdata.goal_time = rospy.get_time()
-            self.goal_index += 1
+
         return 'next_goal'
