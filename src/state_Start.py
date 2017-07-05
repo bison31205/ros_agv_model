@@ -1,5 +1,6 @@
 import rospy
 import smach
+import threading
 from nav_msgs.msg import OccupancyGrid
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseStamped
@@ -12,19 +13,19 @@ class Start(smach.State):
                              outcomes=['init_complete'],
                              input_keys=['robot', 'pub_trajectory'],
                              output_keys=['map', 'pose', 'pub_trajectory'])
-        self.mapReady = False
-        self.poseReady = False
+        self.mapReady_event = threading.Event()
+        self.poseReady_event = threading.Event()
         self.map = OccupancyGrid()
         self.pose = Pose()
 
     def map_callback(self, map, userdata):
         userdata.map = map
-        self.mapReady = True
+        self.mapReady_event.set()
         rospy.loginfo("{"+userdata.robot+"} Map received")
 
     def pose_callback(self, pose, userdata):
         userdata.pose = pose
-        self.poseReady = True
+        self.poseReady_event.set()
         rospy.loginfo("{"+userdata.robot+"} Initial pose received")
 
         # Publish dummy trajectory for initial position
@@ -42,8 +43,8 @@ class Start(smach.State):
 
         rospy.loginfo("{"+userdata.robot+"} Waiting for map and inital pose")
 
-        while not (self.mapReady and self.poseReady):
-            pass
+        self.mapReady_event.wait()
+        self.poseReady_event.wait()
 
         userdata.map = self.map
         userdata.pose = self.pose

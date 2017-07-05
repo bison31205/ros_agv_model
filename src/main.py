@@ -3,6 +3,7 @@
 import rospy
 import smach
 import yaml
+import threading
 
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PoseStamped
@@ -43,9 +44,15 @@ class RobotModel:
         self.sm.userdata.goal_list = []
         self.sm.userdata.goal_counter = [0, 0, []]
         self.sm.userdata.odom = Odometry()
-        self.sm.userdata.path_ready = False
         self.sm.userdata.robots_trajectories = dict()
         self.sm.userdata.robots_features = dict()
+
+        self.sm.userdata.trajectory_updated_robot = ""
+        self.sm.userdata.trajectory_updated_event = threading.Event()
+        self.sm.userdata.path_ready_event = threading.Event()
+        self.sm.userdata.new_odom_event = threading.Event()
+        self.sm.userdata.new_mission_event = threading.Event()
+
 
         # Load robot model parameters
         self.param_file = rospy.get_param('parameters_file')
@@ -104,17 +111,29 @@ class RobotModel:
 
     def odom_callback(self, data):
         self.sm.userdata.odom = data
+        self.sm.userdata.new_odom_event.set()
 
     def mission_callback(self, data):
         self.sm.userdata.goal_list.append(data)
         self.sm.userdata.goal_counter[0] += 1
+        self.sm.userdata.new_mission_event.set()
 
     def plan_callback(self, path):
         self.sm.userdata.path = path
-        self.sm.userdata.path_ready = True
+        self.sm.userdata.path_ready_event.set()
 
     def trajectories_callback(self, data, robot):
+        raise_event = False
+        # Check if new trajectory is subset of the old one (without driven segments)
+        if not all(pose in self.sm.userdata.robots_trajectories[robot].poses
+                   for pose in data.poses):
+            raise_event = True
+
         self.sm.userdata.robots_trajectories[robot] = data
+
+        if raise_event:
+            self.sm.userdata.trajectory_updated_robot = robot
+            self.sm.userdata.trajectory_updated_event.set()
 
     def features_callback(self, data, robot):
         self.sm.userdata.robots_features[robot] = data

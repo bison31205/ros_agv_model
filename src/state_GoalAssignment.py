@@ -6,20 +6,25 @@ class GoalAssignment(smach.State):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['next_goal', 'no_new_goals'],
-                             input_keys=['goal_list', 'odom', 'goal_counter'],
-                             output_keys=['goal_time'])
+                             input_keys=['goal_list', 'odom', 'goal_counter',
+                                         'new_odom_event', 'new_mission_event'],
+                             output_keys=['goal_time', 'new_odom_event',
+                                          'new_mission_event'])
 
     def execute(self, userdata):
         # wait for robot to stop (velocity = 0)
         while userdata.odom.twist.twist.linear.x != 0:
+            userdata.new_odom_event.wait()
+            userdata.new_odom_event.clear()
             pass
 
         # wait for new missions if none are available
-        waiting_time_start = rospy.get_time()
-        while len(userdata.goal_list) == 0:
-            if userdata.goal_counter[0] != 0 and (rospy.get_time() - waiting_time_start) > 60:  # in seconds
+        if len(userdata.goal_list) == 0:
+            if not userdata.new_mission_event.wait(
+                    None if userdata.goal_counter[0] == 0 else 60
+            ):
                 return 'no_new_goals'
-            pass
+            userdata.new_mission_event.clear()
 
         # reset time counter if next goal is also a mission
         all_goals = userdata.goal_counter[0]

@@ -6,7 +6,7 @@ class ConflictResolver(smach.State):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['just_drive', 'change_speed', 'change_path', 'NaN'],
-                             input_keys=['robot', 'robot_conflict', 'conflict_pose',
+                             input_keys=['robot', 'conflict_data',
                                          'robot_data', 'robots_features',
                                          'odom', 'trajectory', 'map_segments'],
                              output_keys=['map_segments'])
@@ -30,13 +30,14 @@ class ConflictResolver(smach.State):
         return True if dist < 0.15 else False
 
     def execute(self, userdata):
-        # print userdata.robot_conflict, userdata.conflict_pose
+        # # # # [robot_name, safe_pose, conflict_time, continuous_overlap]
+        # print userdata.conflict_data
         best_outcome = 'NaN'
         best_dist = 0
         for outcome in userdata.robot_data:
 
             new_dist = self.n_sphere(userdata.robots_features[userdata.robot].features,
-                                     userdata.robots_features[userdata.robot_conflict].features,
+                                     userdata.robots_features[userdata.conflict_data[0]].features,
                                      userdata.robot_data[outcome]["weight"],
                                      userdata.robot_data[outcome]["param"])
             if new_dist == 'NaN':
@@ -53,8 +54,8 @@ class ConflictResolver(smach.State):
                 pass
             return 'just_drive'
         else:
-            if userdata.map_segments.get_segment_value(userdata.conflict_pose.pose.position.x,
-                                                       userdata.conflict_pose.pose.position.y) == 1:
+            if userdata.map_segments.get_segment_value(userdata.conflict_data[1].pose.position.x,
+                                                       userdata.conflict_data[1].pose.position.y) == 1:
                 return 'change_speed'
             else:
                 return 'change_path'
