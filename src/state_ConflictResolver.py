@@ -8,8 +8,9 @@ class ConflictResolver(smach.State):
                              outcomes=['just_drive', 'change_speed', 'change_path', 'NaN'],
                              input_keys=['robot', 'conflict_data',
                                          'robot_data', 'robots_features',
-                                         'odom', 'trajectory', 'map_segments'],
-                             output_keys=['map_segments'])
+                                         'odom', 'trajectory', 'map_segments',
+                                         'new_odom_event'],
+                             output_keys=['map_segments', 'new_odom_event'])
 
     @staticmethod
     def n_sphere(feat_1, feat_2, weight, param):
@@ -51,7 +52,8 @@ class ConflictResolver(smach.State):
         if userdata.robot == "mirko":
             while not self.check_distance(userdata.odom.pose.pose,
                                           userdata.trajectory[0].poses[0].pose):
-                pass
+                userdata.new_odom_event.wait()
+                userdata.new_odom_event.clear()
             return 'just_drive'
         else:
             if userdata.map_segments.get_segment_value(userdata.conflict_data[1].pose.position.x,

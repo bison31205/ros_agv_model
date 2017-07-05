@@ -38,7 +38,7 @@ class Start(smach.State):
         userdata.pub_trajectory.publish(temp_traj)
 
     def execute(self, userdata):
-        sub_map = rospy.Subscriber(userdata.robot + "/map", OccupancyGrid, self.map_callback, userdata)
+        sub_map = rospy.Subscriber("map", OccupancyGrid, self.map_callback, userdata)
         sub_pose = rospy.Subscriber(userdata.robot + "/initialpose", Pose, self.pose_callback, userdata)
 
         rospy.loginfo("{"+userdata.robot+"} Waiting for map and inital pose")

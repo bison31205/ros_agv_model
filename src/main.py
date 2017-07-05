@@ -10,6 +10,7 @@ from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Path
 from geometry_msgs.msg import Twist
 from msg_pkg.msg import Features
+from msg_pkg.msg import Statistics
 
 
 from state_Start import Start
@@ -53,7 +54,6 @@ class RobotModel:
         self.sm.userdata.new_odom_event = threading.Event()
         self.sm.userdata.new_mission_event = threading.Event()
 
-
         # Load robot model parameters
         self.param_file = rospy.get_param('parameters_file')
         self.load_learning_data()
@@ -76,6 +76,7 @@ class RobotModel:
         self.sm.userdata.pub_path = rospy.Publisher(self.robot + "/follow_path", Path, queue_size=10, latch=True)
         self.sm.userdata.pub_trajectory = rospy.Publisher("trajectories/" + self.robot, Path, queue_size=10, latch=True)
         self.sm.userdata.pub_features = rospy.Publisher("features/" + self.robot, Features, queue_size=10, latch=True)
+        self.sm.userdata.pub_exit = rospy.Publisher("exit_state/" + self.robot, Statistics, queue_size=10, latch=True)
 
         # Open the container
         with self.sm:
