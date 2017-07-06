@@ -1,4 +1,4 @@
-import smach
+import smach, rospy
 import math
 
 from msg_pkg.msg import Features
@@ -37,35 +37,51 @@ class ConflictResolver(smach.State):
 
     @staticmethod
     def publish_features(userdata):
-        # [Current mission duration
-        #  Current pose map zone type
-        #  Average map zone type from current pose to conflict pose
+        # 1 #[Current mission duration
+        # 2 # Current pose map zone type
+        # 3 # Average map zone type from current pose to conflict pose
+        # 4 # Distance to safe pose
         # ]
+
         current_pose = userdata.trajectory[0].poses[0]
-        conflict_pose = userdata.conflict_data[1]
+        safe_pose = userdata.conflict_data[1]
+
+        # 1
         current_time = (current_pose.header.stamp.secs +
                         current_pose.header.stamp.nsecs / 1e9)
 
+        # 2
         current_zone = userdata.map_zones.get_zone_number(current_pose.pose.position.x,
                                                           current_pose.pose.position.y)
 
         current_zone_value = userdata.map_zones.get_zone_value(current_zone)
-        average_zone_value = userdata.map_zones.get_zone_value(current_zone)
 
+        # 3
+        average_zone_value = 0
         num_of_seg = 0
         for segment in userdata.trajectory:
-            num_of_seg += 1
-            average_zone_value += userdata.map_zones.get_zone_value(segment)
-            if conflict_pose in segment:
+            num_of_seg += 1.0
+            seg_start_value = userdata.map_zones.get_zone_value(segment.poses[0].pose.position.x,
+                                                                segment.poses[0].pose.position.y)
+            seg_end_value = userdata.map_zones.get_zone_value(segment.poses[-1].pose.position.x,
+                                                              segment.poses[-1].pose.position.y)
+            average_zone_value += seg_start_value if seg_start_value > seg_end_value else seg_end_value
+            if safe_pose in segment.poses:
                 break
         average_zone_value /= num_of_seg
+
+        # 4
+        dist_safe_pose = math.sqrt((current_pose.pose.position.x - safe_pose.pose.position.x) ** 2 +
+                                   (current_pose.pose.position.y - safe_pose.pose.position.y) ** 2)
 
         features = Features()
         features.features += [current_time - userdata.goal_time,
                               current_zone_value,
-                              average_zone_value]
+                              average_zone_value,
+                              dist_safe_pose]
 
         userdata.pub_features.publish(features)
+        print userdata.robot, features
 
     def execute(self, userdata):
         # # # # [robot_name, safe_pose, conflict_time, continuous_overlap]
@@ -105,7 +121,7 @@ class ConflictResolver(smach.State):
                 userdata.new_odom_event.clear()
             return 'just_drive'
         else:
-            if userdata.map_zones.get_zonet_value(userdata.conflict_data[1].pose.position.x,
+            if userdata.map_zones.get_zone_value(userdata.conflict_data[1].pose.position.x,
                                                   userdata.conflict_data[1].pose.position.y) == 1:
                 return 'change_speed'
             else:

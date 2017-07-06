@@ -34,18 +34,21 @@ class AddIntermediateGoal(smach.State):
             new_goal.pose.position.y = y
             new_goal.pose.orientation = userdata.map_zones.get_neighbour_sill_quaternion[(all_paths[0][0],
                                                                                           current_zone)]
+        # If second best path is also through starting zone, and starting zone has value 1
+        # - do a evasion maneuver
         elif all_paths[1][1] == current_zone and userdata.map_zones.get_zone_value(current_zone) == 1:
             [x, y] = userdata.map_zones.get_zone_sills_avg(current_zone)
             new_goal.pose.position.x = x
             new_goal.pose.position.y = y
             new_goal.pose.orientation = userdata.map_zones.neighbour_sill_quaternions[(current_zone,
                                                                                        all_paths[1][2])]
-
+        # Else take the alternative path (it could still be same path,
+        # but robot will first visit neighbouring zone)
         else:
-            new_goal.pose.position.x = userdata.map_zones.get_neighbour_sill[(current_zone, all_paths[1][0])][0]
-            new_goal.pose.position.y = userdata.map_zones.get_neighbour_sill[(current_zone, all_paths[1][0])][1]
-            new_goal.pose.orientation = userdata.map_zones.get_neighbour_sill_quaternion[(current_zone,
-                                                                                          all_paths[1][0])]
+            new_goal.pose.position.x = userdata.map_zones.get_neighbour_sill[(all_paths[1][0], all_paths[1][1])][0]
+            new_goal.pose.position.y = userdata.map_zones.get_neighbour_sill[(all_paths[1][0], all_paths[1][1])][1]
+            new_goal.pose.orientation = userdata.map_zones.get_neighbour_sill_quaternion[(all_paths[1][0],
+                                                                                          all_paths[1][1])]
 
         userdata.goal_list.insert(0, new_goal)
         return 'goal_added'

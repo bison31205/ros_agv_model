@@ -30,20 +30,20 @@ class ChangeSpeed(smach.State):
 
         # Find most suitable segments of trajectory to change speed
         for (segment, seg_speed) in zip(userdata.trajectory, userdata.speed):
-            position1 = segment.poses[0].pose.position
-            position2 = segment.poses[-1].pose.position
-            # if self.in_segment(userdata.conflict_data[1].pose.position, position1, position2):
+            # stop searching if we reached segment where safe pose is
             if userdata.conflict_data[1] in segment.poses:
                 break
-            
-            p1_val = userdata.map_zones.get_zone_value(position1.x, position2.y)
-            p2_val = userdata.map_zones.get_zone_value(position1.x, position2.y)
-            p_val_max = p1_val if p1_val < p2_val else p2_val
 
-            if p_val_max < best_seg_val:
+            seg_start_value = userdata.map_zones.get_zone_value(segment.poses[0].pose.position.x,
+                                                                segment.poses[0].pose.position.y)
+            seg_end_value = userdata.map_zones.get_zone_value(segment.poses[-1].pose.position.x,
+                                                              segment.poses[-1].pose.position.y)
+            seg_val = seg_start_value if seg_start_value > seg_end_value else seg_end_value
+
+            if seg_val < best_seg_val:
                 best_index = [index]
-                best_seg_val = p_val_max
-            elif p_val_max == best_seg_val:
+                best_seg_val = seg_val
+            elif seg_val == best_seg_val:
                 best_index.append(index)
             index += 1
 
@@ -51,6 +51,7 @@ class ChangeSpeed(smach.State):
         safe_pose_time = (userdata.conflict_data[1].header.stamp.secs +
                           userdata.conflict_data[1].header.stamp.nsecs / 1e9)
         needed_time = userdata.conflict_data[2] - safe_pose_time
+
         best_index_time = 0
         for index in best_index:
             best_index_time += userdata.segment_time * userdata.max_speed / userdata.speed[index]

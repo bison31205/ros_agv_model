@@ -1,4 +1,4 @@
-import smach
+import smach,rospy
 import math
 import threading
 
@@ -41,6 +41,13 @@ class CheckClearance(smach.State):
     def check_for_conflicts(self, userdata):
         self.conflict = False
 
+        def calc_dist(p1, p2):
+            return math.sqrt((p1.pose.position.x - p2.pose.position.x) ** 2 +
+                             (p1.pose.position.y - p2.pose.position.y) ** 2)
+
+        def calc_time(stamp):
+            return stamp.secs + stamp.nsecs / 1e9
+
         while not (self.stop_thread and self.first_pass_done):
             # If its first pass, check for conflict with all robots
             if not self.first_pass_done:
@@ -71,7 +78,7 @@ class CheckClearance(smach.State):
             # Find conflict where robot2 tries to pass same point
             # in space in a narrow time window when there is robot1
             for pose1 in userdata.robots_trajectories[robot1].poses:
-                pose1_time = pose1.header.stamp.secs + pose1.header.stamp.nsecs / 1e9
+                pose1_time = calc_time(pose1.header.stamp)
                 # don't look at poses which are older than current time
                 if pose1_time < current_time:
                     continue
@@ -89,14 +96,12 @@ class CheckClearance(smach.State):
 
                     # Iterate through robot2 poses from saved index
                     for pose2 in userdata.robots_trajectories[robot2].poses[index[robot2]:]:
-                        pose2_time = pose2.header.stamp.secs + pose2.header.stamp.nsecs / 1e9
+                        pose2_time = calc_time(pose2.header.stamp)
 
                         # If time difference is bellow 0.1 seconds, check distance
                         if abs(pose1_time - pose2_time) < 0.1:
-                            dist = math.sqrt((pose1.pose.position.x - pose2.pose.position.x) ** 2 +
-                                             (pose1.pose.position.y - pose2.pose.position.y) ** 2)
-                            if dist < 0.5:
-                                # [robot_name, safe_pose, conflict_time, continuous_overlap]
+                            if calc_dist(pose1, pose2) < 0.50:
+                                # [robot_name, safe_pose, future_conflict_time, found_safe_pose]
                                 userdata.conflict_data = [robot2, pose1, pose1_time, False]
                                 index[robot1] = userdata.robots_trajectories[robot1].poses.index(pose1)
                                 index[robot2] = userdata.robots_trajectories[robot2].poses.index(pose2)
@@ -115,25 +120,30 @@ class CheckClearance(smach.State):
 
             # If there is conflict, check if trajectories overlap constantly
             if self.conflict:
+                print robot1
                 # Iterate pose by pose and find safe pose1
                 # - pose1 iterates reversed from conflict pose to start pose
                 # - pose2 iterates from conflict pose until final pose
                 robot2 = userdata.conflict_data[0]
+                consecutive_safe = 0
                 for (pose1, pose2) in zip(reversed(userdata.robots_trajectories[robot1].poses[:index[robot1]]),
                                           userdata.robots_trajectories[robot2].poses[index[robot2]+10:]):
-                    dist = math.sqrt((pose1.pose.position.x - pose2.pose.position.x) ** 2 +
-                                     (pose1.pose.position.y - pose2.pose.position.y) ** 2)
-                    if dist < 0.5:
-                        # [robot_name, safe_pose,  conflict_time, continuous_overlap]
-                        userdata.conflict_data[3] = True
+
+                    if calc_dist(pose1, pose2) < 0.5:
+                        consecutive_safe = 0
                     else:
                         # if we found last point of continuous overlap, then return last safe pose
-                        # [robot_name, safe_pose, conflict_time, continuous_overlap]
+                        # [robot_name, safe_pose, conflict_time, continuous_overlap, found_safe_pose]
                         userdata.conflict_data[1] = pose1
                         userdata.conflict_data[2] = pose2.header.stamp.secs + pose2.header.stamp.nsecs / 1e9
-                        return
-            # return if there is no conflict
-            return
+                        userdata.conflict_data[3] = True
+                        consecutive_safe += 1
+                        if consecutive_safe == 10:
+                            break
+                if self.conflict and not userdata.conflict_data[3]:
+                    userdata.conflict_data[1] = userdata.robots_trajectories[robot1].poses[0]
+                    userdata.conflict_data[2] = float('Inf')
+        return
 
     def execute(self, userdata):
         # Start parallel thread which checks for conflicts
