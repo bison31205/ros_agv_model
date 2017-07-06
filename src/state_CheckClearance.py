@@ -2,8 +2,6 @@ import smach
 import math
 import threading
 
-from msg_pkg.msg import Features
-
 
 class FuncThread(threading.Thread):
     def __init__(self, target, *args):
@@ -21,13 +19,12 @@ class CheckClearance(smach.State):
                              outcomes=['conflict', 'OK_clearance'],
                              input_keys=['trajectory', 'odom', 'conflict_data',
                                          'robots_trajectories', 'goal_time',
-                                         'robot_list', 'robot', 'pub_features',
-                                         'map_segments', 'trajectory_updated_robot',
+                                         'robot_list', 'robot', 'trajectory_updated_robots',
                                          'trajectory_updated_event',
                                          'new_odom_event'],
                              output_keys=['trajectory', 'conflict_data',
-                                          'pub_features', 'map_segments',
                                           'trajectory_updated_event',
+                                          'trajectory_updated_robots',
                                           'new_odom_event'])
         self.stop_thread = False
         self.first_pass_done = False
@@ -39,25 +36,7 @@ class CheckClearance(smach.State):
         dist = math.sqrt((odom.position.x - end.position.x) ** 2 +
                          (odom.position.y - end.position.y) ** 2)
 
-        return True if dist < 0.15 else False
-
-    @staticmethod
-    def publish_features(userdata):
-        # [Current goal time
-        #  Current map segment type
-        #  Average map segment type]
-        current_pose = userdata.trajectory[0].poses[0]
-        current_time = (current_pose.header.stamp.secs +
-                        current_pose.header.stamp.nsecs / 1e9)
-
-        current_segment = userdata.map_segments.get_segment_value(current_pose.pose.position.x,
-                                                                  current_pose.pose.position.y)
-
-        features = Features()
-        features.features += [current_time - userdata.goal_time,  # Current goal time
-                              current_segment]  # Current map segment type
-
-        userdata.pub_features.publish(features)
+        return True if dist < 0.25 else False
 
     def check_for_conflicts(self, userdata):
         self.conflict = False
@@ -71,56 +50,64 @@ class CheckClearance(smach.State):
             else:
                 self.thread_is_waiting = True
                 userdata.trajectory_updated_event.wait()
+                robot_list = userdata.trajectory_updated_robots[:]
+                userdata.trajectory_updated_robots = []
                 userdata.trajectory_updated_event.clear()
                 self.thread_is_waiting = False
                 # If event is raised from CheckClearance, return immediately
                 if self.stop_thread:
                     return
-                # Else, write which robot has updated trajectory
-                robot_list = [userdata.trajectory_updated_robot]
 
+            # time at the start of next segment
             current_time = (userdata.trajectory[0].poses[0].header.stamp.secs +
                             userdata.trajectory[0].poses[0].header.stamp.nsecs / 1e9)
 
-            old_index = dict()
+            index = dict()
 
-            # Find conflict where two robots try to pass same point in space in a narrow time window
-            for pose1 in userdata.robots_trajectories[userdata.robot].poses:
+            robot1 = userdata.robot
+            # robot1 = current robot (userdata.robot)
+            # robot2 = some other robot (robot from robot_list)
+            #
+            # Find conflict where robot2 tries to pass same point
+            # in space in a narrow time window when there is robot1
+            for pose1 in userdata.robots_trajectories[robot1].poses:
                 pose1_time = pose1.header.stamp.secs + pose1.header.stamp.nsecs / 1e9
                 # don't look at poses which are older than current time
                 if pose1_time < current_time:
                     continue
 
-                # check with every robot if there is a conflict in 'pose'
-                for robot in robot_list:
-                    if robot == userdata.robot:
+                # check with every robot2 if there is a conflict with robot1 in pose1
+                for robot2 in robot_list:
+                    # skip robot1 in robot_list
+                    if robot2 == robot1:
                         continue
 
-                    if robot not in old_index:
-                        old_index[robot] = 0
+                    # Optimization wise, only check poses with timestamp 'just before' pose1
+                    # If we haven't found pose2 with sufficient timestamp yet, start from index 0
+                    if robot2 not in index:
+                        index[robot2] = 0
 
-                    index = old_index[robot]
-
-                    for pose2 in userdata.robots_trajectories[robot].poses[old_index[robot]:]:
+                    # Iterate through robot2 poses from saved index
+                    for pose2 in userdata.robots_trajectories[robot2].poses[index[robot2]:]:
                         pose2_time = pose2.header.stamp.secs + pose2.header.stamp.nsecs / 1e9
 
+                        # If time difference is bellow 0.1 seconds, check distance
                         if abs(pose1_time - pose2_time) < 0.1:
                             dist = math.sqrt((pose1.pose.position.x - pose2.pose.position.x) ** 2 +
                                              (pose1.pose.position.y - pose2.pose.position.y) ** 2)
                             if dist < 0.5:
                                 # [robot_name, safe_pose, conflict_time, continuous_overlap]
-                                userdata.conflict_data = [robot, pose1, pose1_time, False]
-                                old_index[robot] = index
-                                old_index[userdata.robot] = userdata.robots_trajectories[userdata.robot].poses.index(
-                                    pose1)
+                                userdata.conflict_data = [robot2, pose1, pose1_time, False]
+                                index[robot1] = userdata.robots_trajectories[robot1].poses.index(pose1)
+                                index[robot2] = userdata.robots_trajectories[robot2].poses.index(pose2)
                                 self.conflict = True
                                 break
-
+                        # If pose2 is ahead from pose1, stop checking robot2
                         elif pose2_time > pose1_time:
                             break
+                        # If pose2 is before pose2, update index
                         else:
-                            old_index[robot] = index
-                            index += 1
+                            index[robot2] += 1
                     if self.conflict:
                         break
                 if self.conflict:
@@ -128,8 +115,12 @@ class CheckClearance(smach.State):
 
             # If there is conflict, check if trajectories overlap constantly
             if self.conflict:
-                for (pose1, pose2) in zip(reversed(userdata.robots_trajectories[userdata.robot].poses[:old_index[userdata.robot]]),
-                                          userdata.robots_trajectories[userdata.conflict_data[0]].poses[old_index[userdata.conflict_data[0]] + 10:]):
+                # Iterate pose by pose and find safe pose1
+                # - pose1 iterates reversed from conflict pose to start pose
+                # - pose2 iterates from conflict pose until final pose
+                robot2 = userdata.conflict_data[0]
+                for (pose1, pose2) in zip(reversed(userdata.robots_trajectories[robot1].poses[:index[robot1]]),
+                                          userdata.robots_trajectories[robot2].poses[index[robot2]+10:]):
                     dist = math.sqrt((pose1.pose.position.x - pose2.pose.position.x) ** 2 +
                                      (pose1.pose.position.y - pose2.pose.position.y) ** 2)
                     if dist < 0.5:
@@ -145,12 +136,9 @@ class CheckClearance(smach.State):
             return
 
     def execute(self, userdata):
-        # Update and publish features vector
-        self.publish_features(userdata)
-
         # Start parallel thread which checks for conflicts
         # - first pass is full pass
-        # - take another pass only if there is change in other trajectory
+        # - take another pass only if there is change in other robot trajectory
         conflict_thread = FuncThread(self.check_for_conflicts, userdata)
         self.stop_thread = False
         self.first_pass_done = False

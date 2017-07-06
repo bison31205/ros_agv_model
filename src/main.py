@@ -40,7 +40,7 @@ class RobotModel:
         self.sm.userdata.robot = self.robot
         self.sm.userdata.robot_list = self.robot_list
         self.sm.userdata.robot_data = []
-        self.sm.userdata.segment_time = 3  # seconds
+        self.sm.userdata.segment_time = 5  # seconds
         self.sm.userdata.max_speed = 0.15  # m/s
         self.sm.userdata.goal_list = []
         self.sm.userdata.goal_counter = [0, 0, []]
@@ -48,11 +48,13 @@ class RobotModel:
         self.sm.userdata.robots_trajectories = dict()
         self.sm.userdata.robots_features = dict()
 
-        self.sm.userdata.trajectory_updated_robot = ""
+        self.sm.userdata.trajectory_updated_robots = []
+        self.sm.userdata.features_updated_robots = []
         self.sm.userdata.trajectory_updated_event = threading.Event()
         self.sm.userdata.path_ready_event = threading.Event()
         self.sm.userdata.new_odom_event = threading.Event()
         self.sm.userdata.new_mission_event = threading.Event()
+        self.sm.userdata.features_updated_event = threading.Event()
 
         # Load robot model parameters
         self.param_file = rospy.get_param('parameters_file')
@@ -133,11 +135,13 @@ class RobotModel:
         self.sm.userdata.robots_trajectories[robot] = data
 
         if raise_event:
-            self.sm.userdata.trajectory_updated_robot = robot
+            self.sm.userdata.trajectory_updated_robots.append(robot)
             self.sm.userdata.trajectory_updated_event.set()
 
     def features_callback(self, data, robot):
         self.sm.userdata.robots_features[robot] = data
+        self.sm.userdata.features_updated_robots.append(robot)
+        self.sm.userdata.features_updated_event.set()
 
     def start(self):
         self.sm.execute()

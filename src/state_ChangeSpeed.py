@@ -7,8 +7,8 @@ class ChangeSpeed(smach.State):
                              outcomes=['speed_changed'],
                              input_keys=['conflict_data', 'speed',
                                          'segment_time', 'max_speed',
-                                         'trajectory', 'map_segments'],
-                             output_keys=['map_segments', 'speed'])
+                                         'trajectory', 'map_zones'],
+                             output_keys=['map_zones', 'speed'])
 
     @staticmethod
     def in_segment(pose_c, pose1, pose2):
@@ -36,8 +36,8 @@ class ChangeSpeed(smach.State):
             if userdata.conflict_data[1] in segment.poses:
                 break
             
-            p1_val = userdata.map_segments.get_segment_value(position1.x, position2.y)
-            p2_val = userdata.map_segments.get_segment_value(position1.x, position2.y)
+            p1_val = userdata.map_zones.get_zone_value(position1.x, position2.y)
+            p2_val = userdata.map_zones.get_zone_value(position1.x, position2.y)
             p_val_max = p1_val if p1_val < p2_val else p2_val
 
             if p_val_max < best_seg_val:
@@ -48,7 +48,8 @@ class ChangeSpeed(smach.State):
             index += 1
 
         # Calculate speed modifier
-        safe_pose_time = userdata.conflict_data[1].header.stamp.secs + userdata.conflict_data[1].header.stamp.nsecs / 1e9
+        safe_pose_time = (userdata.conflict_data[1].header.stamp.secs +
+                          userdata.conflict_data[1].header.stamp.nsecs / 1e9)
         needed_time = userdata.conflict_data[2] - safe_pose_time
         best_index_time = 0
         for index in best_index:

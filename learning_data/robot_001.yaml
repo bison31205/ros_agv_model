@@ -1,12 +1,12 @@
 change_speed:
   outcome: "change_speed"
-  param: [3, 4, 6]
-  weight: [0.7, 0.5, 0.3]
+  param: [3, 4, 6, 7]
+  weight: [0.7, 0.5, 0.3, 0.7]
 just_drive:
   outcome: "just_drive"
-  param: [3, 4, 6]
-  weight: [0.7, 0.5, 0.3]
+  param: [3, 4, 6, 5]
+  weight: [0.7, 0.5, 0.3, 0.2]
 change_path:
   outcome: "change_path"
-  param: [3, 4, 6]
-  weight: [0.7, 0.5, 0.3]
+  param: [3, 4, 6, 9]
+  weight: [0.7, 0.5, 0.3, 0.9]

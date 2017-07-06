@@ -21,8 +21,11 @@ class GoalAssignment(smach.State):
         # wait for new missions if none are available
         if len(userdata.goal_list) == 0:
             if not userdata.new_mission_event.wait(
-                    None if userdata.goal_counter[0] == 0 else 10
+                    # if its first mission, wait as long as it takes
+                    # if there were some mission before, wait for 5 seconds
+                    None if userdata.goal_counter[0] == 0 else 5
             ):
+                # exit if timeout is reached
                 return 'no_new_goals'
             userdata.new_mission_event.clear()
 
