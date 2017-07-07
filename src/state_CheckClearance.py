@@ -20,7 +20,7 @@ class CheckClearance(smach.State):
                              input_keys=['trajectory', 'odom', 'conflict_data',
                                          'robots_trajectories', 'goal_time',
                                          'robot_list', 'robot', 'trajectory_updated_robots',
-                                         'trajectory_updated_event',
+                                         'trajectory_updated_event', 'ignore_conflict_robots',
                                          'new_odom_event'],
                              output_keys=['trajectory', 'conflict_data',
                                           'trajectory_updated_event',
@@ -39,8 +39,6 @@ class CheckClearance(smach.State):
         return True if dist < 0.25 else False
 
     def check_for_conflicts(self, userdata):
-        self.conflict = False
-
         def calc_dist(p1, p2):
             return math.sqrt((p1.pose.position.x - p2.pose.position.x) ** 2 +
                              (p1.pose.position.y - p2.pose.position.y) ** 2)
@@ -89,6 +87,10 @@ class CheckClearance(smach.State):
                     if robot2 == robot1:
                         continue
 
+                    # skip robots that conflict resolver said to ignore
+                    if robot2 in userdata.ignore_conflict_robots:
+                        continue
+
                     # Optimization wise, only check poses with timestamp 'just before' pose1
                     # If we haven't found pose2 with sufficient timestamp yet, start from index 0
                     if robot2 not in index:
@@ -120,7 +122,6 @@ class CheckClearance(smach.State):
 
             # If there is conflict, check if trajectories overlap constantly
             if self.conflict:
-                print robot1
                 # Iterate pose by pose and find safe pose1
                 # - pose1 iterates reversed from conflict pose to start pose
                 # - pose2 iterates from conflict pose until final pose
@@ -143,7 +144,7 @@ class CheckClearance(smach.State):
                 if self.conflict and not userdata.conflict_data[3]:
                     userdata.conflict_data[1] = userdata.robots_trajectories[robot1].poses[0]
                     userdata.conflict_data[2] = float('Inf')
-        return
+            return
 
     def execute(self, userdata):
         # Start parallel thread which checks for conflicts
@@ -152,6 +153,7 @@ class CheckClearance(smach.State):
         conflict_thread = FuncThread(self.check_for_conflicts, userdata)
         self.stop_thread = False
         self.first_pass_done = False
+        self.conflict = False
         conflict_thread.start()
 
         # Wait while we are close enough to publish next segment

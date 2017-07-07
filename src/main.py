@@ -50,6 +50,7 @@ class RobotModel:
 
         self.sm.userdata.trajectory_updated_robots = []
         self.sm.userdata.features_updated_robots = []
+        self.sm.userdata.ignore_conflict_robots = []
         self.sm.userdata.trajectory_updated_event = threading.Event()
         self.sm.userdata.path_ready_event = threading.Event()
         self.sm.userdata.new_odom_event = threading.Event()
@@ -101,7 +102,7 @@ class RobotModel:
                                    transitions={'goal_reached': 'GoalAssignment',
                                                 'next_segment': 'CheckClearance'})
             smach.StateMachine.add('ConflictResolver', ConflictResolver(),
-                                   transitions={'just_drive': 'Driving',
+                                   transitions={'continue': 'CheckClearance',
                                                 'change_path': 'AddIntermediateGoal',
                                                 'change_speed': 'ChangeSpeed',
                                                 'NaN': 'ExitState'})
@@ -135,6 +136,8 @@ class RobotModel:
         self.sm.userdata.robots_trajectories[robot] = data
 
         if raise_event:
+            if robot in self.sm.userdata.ignore_conflict_robots:
+                self.sm.userdata.ignore_conflict_robots.remove(robot)
             self.sm.userdata.trajectory_updated_robots.append(robot)
             self.sm.userdata.trajectory_updated_event.set()
 

@@ -7,15 +7,17 @@ from msg_pkg.msg import Features
 class ConflictResolver(smach.State):
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['just_drive', 'change_speed', 'change_path', 'NaN'],
+                             outcomes=['continue', 'change_speed', 'change_path', 'NaN'],
                              input_keys=['robot', 'conflict_data', 'goal_time',
                                          'robot_data', 'robots_features',
                                          'odom', 'trajectory', 'map_zones',
                                          'new_odom_event', 'pub_features',
                                          'features_updated_robots',
-                                         'features_updated_event'],
+                                         'features_updated_event',
+                                         'ignore_conflict_robots'],
                              output_keys=['new_odom_event', 'pub_features', 'map_zones',
-                                          'features_updated_event', 'features_updated_robots'])
+                                          'features_updated_event', 'features_updated_robots',
+                                          'ignore_conflict_robots'])
 
     @staticmethod
     def n_sphere(feat_1, feat_2, weight, param):
@@ -23,8 +25,8 @@ class ConflictResolver(smach.State):
         for f1, f2, w, p in zip(feat_1, feat_2, weight[1:], param[1:]):
             dist += ((f1 - f2) * w - p) ** 2
         dist = math.sqrt(dist)
-        if dist <= param[0]:
-            return weight[0] * dist / param[0]
+        if dist <= param[0] ** 2:
+            return weight[0] * dist / (param[0] ** 2)
         else:
             return 'NaN'
 
@@ -33,15 +35,15 @@ class ConflictResolver(smach.State):
         dist = math.sqrt((odom.position.x - end.position.x) ** 2 +
                          (odom.position.y - end.position.y) ** 2)
 
-        return True if dist < 0.15 else False
+        return True if dist < 0.25 else False
 
     @staticmethod
     def publish_features(userdata):
-        # 1 #[Current mission duration
+        # 1 # Current mission duration
         # 2 # Current pose map zone type
-        # 3 # Average map zone type from current pose to conflict pose
-        # 4 # Distance to safe pose
-        # ]
+        # 3 # Average map zone value from current pose to conflict pose
+        # 4 # Average map zone value for whole trajectory
+        # 5 # Distance to safe pose
 
         current_pose = userdata.trajectory[0].poses[0]
         safe_pose = userdata.conflict_data[1]
@@ -56,32 +58,41 @@ class ConflictResolver(smach.State):
 
         current_zone_value = userdata.map_zones.get_zone_value(current_zone)
 
-        # 3
-        average_zone_value = 0
-        num_of_seg = 0
+        # 3 & 4
+        avg_zone_val = 0
+        avg_zone_val_conf = 0
+        num_of_seg_conf = 0
+        safe_pose_reached = False
         for segment in userdata.trajectory:
-            num_of_seg += 1.0
             seg_start_value = userdata.map_zones.get_zone_value(segment.poses[0].pose.position.x,
                                                                 segment.poses[0].pose.position.y)
             seg_end_value = userdata.map_zones.get_zone_value(segment.poses[-1].pose.position.x,
                                                               segment.poses[-1].pose.position.y)
-            average_zone_value += seg_start_value if seg_start_value > seg_end_value else seg_end_value
+
+            avg_zone_val += seg_start_value if seg_start_value > seg_end_value else seg_end_value
+
+            if not safe_pose_reached:
+                avg_zone_val_conf += seg_start_value if seg_start_value > seg_end_value else seg_end_value
+                num_of_seg_conf += 1.0
+
             if safe_pose in segment.poses:
                 break
-        average_zone_value /= num_of_seg
 
-        # 4
+        avg_zone_val_conf /= num_of_seg_conf
+        avg_zone_val /= len(userdata.trajectory)
+
+        # 5
         dist_safe_pose = math.sqrt((current_pose.pose.position.x - safe_pose.pose.position.x) ** 2 +
                                    (current_pose.pose.position.y - safe_pose.pose.position.y) ** 2)
 
         features = Features()
         features.features += [current_time - userdata.goal_time,
                               current_zone_value,
-                              average_zone_value,
+                              avg_zone_val_conf,
+                              avg_zone_val,
                               dist_safe_pose]
 
         userdata.pub_features.publish(features)
-        print userdata.robot, features
 
     def execute(self, userdata):
         # # # # [robot_name, safe_pose, conflict_time, continuous_overlap]
@@ -112,18 +123,13 @@ class ConflictResolver(smach.State):
                     best_outcome = outcome
                     best_dist = new_dist
 
+        print userdata.robot, best_outcome, best_dist
 
-# ZA TESTIRRANJE
-        if userdata.robot == "mirko":
-            while not self.check_distance(userdata.odom.pose.pose,
-                                          userdata.trajectory[0].poses[0].pose):
-                userdata.new_odom_event.wait()
-                userdata.new_odom_event.clear()
-            return 'just_drive'
-        else:
-            if userdata.map_zones.get_zone_value(userdata.conflict_data[1].pose.position.x,
-                                                  userdata.conflict_data[1].pose.position.y) == 1:
-                return 'change_speed'
-            else:
+        if best_outcome == 'continue':
+            userdata.ignore_conflict_robots.append(userdata.conflict_data[0])
+
+        if best_outcome == 'change_speed':
+            if not userdata.conflict_data[3]:
                 return 'change_path'
 
+        return best_outcome
