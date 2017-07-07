@@ -25,8 +25,8 @@ class ConflictResolver(smach.State):
         for f1, f2, w, p in zip(feat_1, feat_2, weight[1:], param[1:]):
             dist += ((f1 - f2) * w - p) ** 2
         dist = math.sqrt(dist)
-        if dist <= param[0] ** 2:
-            return weight[0] * dist / (param[0] ** 2)
+        if dist <= param[0]:
+            return weight[0] * dist / param[0]
         else:
             return 'NaN'
 
@@ -79,7 +79,7 @@ class ConflictResolver(smach.State):
                 break
 
         avg_zone_val_conf /= num_of_seg_conf
-        avg_zone_val /= len(userdata.trajectory)
+        avg_zone_val /= float(len(userdata.trajectory))
 
         # 5
         dist_safe_pose = math.sqrt((current_pose.pose.position.x - safe_pose.pose.position.x) ** 2 +
@@ -108,11 +108,11 @@ class ConflictResolver(smach.State):
             self.publish_features(userdata)
             userdata.features_updated_event.wait()
             userdata.features_updated_event.clear()
+        self.publish_features(userdata)
 
         best_outcome = 'NaN'
         best_dist = 0
         for outcome in userdata.robot_data:
-
             new_dist = self.n_sphere(userdata.robots_features[userdata.robot].features,
                                      userdata.robots_features[userdata.conflict_data[0]].features,
                                      userdata.robot_data[outcome]["weight"],

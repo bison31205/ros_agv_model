@@ -36,7 +36,7 @@ class CheckClearance(smach.State):
         dist = math.sqrt((odom.position.x - end.position.x) ** 2 +
                          (odom.position.y - end.position.y) ** 2)
 
-        return True if dist < 0.25 else False
+        return True if dist < 0.30 else False
 
     def check_for_conflicts(self, userdata):
         def calc_dist(p1, p2):
@@ -101,8 +101,8 @@ class CheckClearance(smach.State):
                         pose2_time = calc_time(pose2.header.stamp)
 
                         # If time difference is bellow 0.1 seconds, check distance
-                        if abs(pose1_time - pose2_time) < 0.1:
-                            if calc_dist(pose1, pose2) < 0.50:
+                        if abs(pose1_time - pose2_time) < 0.2:
+                            if calc_dist(pose1, pose2) < 0.65:
                                 # [robot_name, safe_pose, future_conflict_time, found_safe_pose]
                                 userdata.conflict_data = [robot2, pose1, pose1_time, False]
                                 index[robot1] = userdata.robots_trajectories[robot1].poses.index(pose1)
@@ -130,7 +130,7 @@ class CheckClearance(smach.State):
                 for (pose1, pose2) in zip(reversed(userdata.robots_trajectories[robot1].poses[:index[robot1]]),
                                           userdata.robots_trajectories[robot2].poses[index[robot2]+10:]):
 
-                    if calc_dist(pose1, pose2) < 0.5:
+                    if calc_dist(pose1, pose2) < 0.65:
                         consecutive_safe = 0
                     else:
                         # if we found last point of continuous overlap, then return last safe pose
@@ -157,9 +157,9 @@ class CheckClearance(smach.State):
         conflict_thread.start()
 
         # Wait while we are close enough to publish next segment
-        while not self.check_distance(userdata.odom.pose.pose,
-                                      userdata.trajectory[0].poses[0].pose):
+        while not self.check_distance(userdata.odom.pose.pose, userdata.trajectory[0].poses[0].pose):
             # Break if there is a conflict
+
             if self.conflict:
                 break
             # Idle while waiting for new odom data
