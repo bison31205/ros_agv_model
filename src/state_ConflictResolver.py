@@ -77,7 +77,7 @@ class ConflictResolver(smach.State):
                 num_of_seg_conf += 1.0
 
             if safe_pose in segment.poses:
-                break
+                safe_pose_reached = True
 
         avg_zone_val_conf /= num_of_seg_conf
         avg_zone_val /= float(len(userdata.trajectory))

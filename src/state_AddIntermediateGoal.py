@@ -18,7 +18,7 @@ class AddIntermediateGoal(smach.State):
             active_goals = len(userdata.goal_list)
             # remove old intermediate goal (if it exists)
             if not all_goals == done_goals + active_goals:
-                userdata.goal_list.pop()
+                userdata.goal_list.pop(0)
             userdata.goal_list.insert(0, goal)
 
         # Get all paths to goal with origins in neighbouring zones

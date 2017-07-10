@@ -6,7 +6,7 @@
 # 5 # Distance to safe pose
 change_speed:
   outcome: "change_speed"
-  weight: [1.0, 0.0, 2.0, 2.0, 2.0, 0.5]
+  weight: [0.9, 0.0, 2.0, 2.0, 2.0, 0.5]
   param: [12.0, 0.0, -3.0, -3.0, -3.0, 3.0]
 continue:
   outcome: "just_drive"
@@ -14,5 +14,5 @@ continue:
   param: [12.0, 0.0, 3.0, 3.0, -3.0, -3.0]
 change_path:
   outcome: "change_path"
-  weight: [0.7, 0.0, 1.5, 4.0, 1.5, 0.0]
+  weight: [0.8, 0.0, 1.5, 4.0, 1.5, 0.0]
   param: [6.0, 0.0, -1.5, -5, 1.5, 0.0]
