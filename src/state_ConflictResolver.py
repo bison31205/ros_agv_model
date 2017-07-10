@@ -7,12 +7,13 @@ from msg_pkg.msg import Features
 class ConflictResolver(smach.State):
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['continue', 'change_speed', 'change_path', 'NaN'],
+                             outcomes=['continue', 'change_speed', 'change_path',
+                                       'recalculate_trajectory', 'NaN'],
                              input_keys=['robot', 'conflict_data', 'goal_time',
                                          'robot_data', 'robots_features',
                                          'odom', 'trajectory', 'map_zones',
                                          'new_odom_event', 'pub_features',
-                                         'features_updated_robots',
+                                         'features_updated_robots', 'segment_time',
                                          'features_updated_event',
                                          'ignore_conflict_robots'],
                              output_keys=['new_odom_event', 'pub_features', 'map_zones',
@@ -102,12 +103,16 @@ class ConflictResolver(smach.State):
         # Publish robot1 vector until communication is over
         # - both robots will publish their own data until both of them have both robot features
         userdata.features_updated_robots = []
+        waiting_start = rospy.get_time()
         while not (userdata.robot in userdata.features_updated_robots and
                    userdata.conflict_data[0] in userdata.features_updated_robots):
             # Update and publish features vector
             self.publish_features(userdata)
             userdata.features_updated_event.wait()
             userdata.features_updated_event.clear()
+            # If only this robot detected the conflict, ignore it for now and recalculate trajectory
+            if rospy.get_time() - waiting_start > userdata.segment_time:
+                return 'recalculate_trajectory'
         self.publish_features(userdata)
 
         best_outcome = 'NaN'
@@ -117,6 +122,7 @@ class ConflictResolver(smach.State):
                                      userdata.robots_features[userdata.conflict_data[0]].features,
                                      userdata.robot_data[outcome]["weight"],
                                      userdata.robot_data[outcome]["param"])
+            print userdata.robot, outcome, new_dist
             if new_dist == 'NaN':
                 pass
             elif best_outcome == 'NaN' or new_dist < best_dist:

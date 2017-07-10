@@ -105,6 +105,7 @@ class RobotModel:
                                    transitions={'continue': 'CheckClearance',
                                                 'change_path': 'AddIntermediateGoal',
                                                 'change_speed': 'ChangeSpeed',
+                                                'recalculate_trajectory': 'CalcTrajectory',
                                                 'NaN': 'ExitState'})
             smach.StateMachine.add('AddIntermediateGoal', AddIntermediateGoal(),
                                    transitions={'goal_added': 'GoalAssignment'})

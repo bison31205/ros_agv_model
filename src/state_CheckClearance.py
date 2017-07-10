@@ -30,6 +30,7 @@ class CheckClearance(smach.State):
         self.first_pass_done = False
         self.thread_is_waiting = False
         self.conflict = False
+        self.current_trajectory_checked = False
 
     @staticmethod
     def check_distance(odom, end):
@@ -47,6 +48,11 @@ class CheckClearance(smach.State):
             return stamp.secs + stamp.nsecs / 1e9
 
         while not (self.stop_thread and self.first_pass_done):
+            robot1 = userdata.robot
+            if robot1 in userdata.trajectory_updated_robots:
+                self.current_trajectory_checked = False
+                userdata.trajectory_updated_robots.remove(robot1)
+
             # If its first pass, check for conflict with all robots
             if not self.first_pass_done:
                 self.first_pass_done = True
@@ -55,11 +61,18 @@ class CheckClearance(smach.State):
             else:
                 self.thread_is_waiting = True
                 userdata.trajectory_updated_event.wait()
-                robot_list = userdata.trajectory_updated_robots[:]
+                # check if robot1 trajectory was changed
+                if robot1 in userdata.trajectory_updated_robots:
+                    self.current_trajectory_checked = False
+                    userdata.trajectory_updated_robots.remove(robot1)
+                    robot_list = userdata.robot_list
+                else:
+                    robot_list = userdata.trajectory_updated_robots[:]
+
                 userdata.trajectory_updated_robots = []
                 userdata.trajectory_updated_event.clear()
                 self.thread_is_waiting = False
-                # If event is raised from CheckClearance, return immediately
+                # If event was raised from CheckClearance (dummy event), return immediately
                 if self.stop_thread:
                     return
 
@@ -69,7 +82,6 @@ class CheckClearance(smach.State):
 
             index = dict()
 
-            robot1 = userdata.robot
             # robot1 = current robot (userdata.robot)
             # robot2 = some other robot (robot from robot_list)
             #
@@ -88,7 +100,10 @@ class CheckClearance(smach.State):
                         continue
 
                     # skip robots that conflict resolver said to ignore
-                    if robot2 in userdata.ignore_conflict_robots:
+                    # also skip robots whose current trajectory is known to have no conflict
+                    # DON'T SKIP ANY IF robot1 TRAJECTORY WAS CHANGED
+                    if (robot2 in userdata.ignore_conflict_robots and
+                            self.current_trajectory_checked):
                         continue
 
                     # Optimization wise, only check poses with timestamp 'just before' pose1
@@ -101,7 +116,7 @@ class CheckClearance(smach.State):
                         pose2_time = calc_time(pose2.header.stamp)
 
                         # If time difference is bellow 0.1 seconds, check distance
-                        if abs(pose1_time - pose2_time) < 0.2:
+                        if abs(pose1_time - pose2_time) < 0.3:
                             if calc_dist(pose1, pose2) < 0.65:
                                 # [robot_name, safe_pose, future_conflict_time, found_safe_pose]
                                 userdata.conflict_data = [robot2, pose1, pose1_time, False]
@@ -144,7 +159,10 @@ class CheckClearance(smach.State):
                 if self.conflict and not userdata.conflict_data[3]:
                     userdata.conflict_data[1] = userdata.robots_trajectories[robot1].poses[0]
                     userdata.conflict_data[2] = float('Inf')
-            return
+                return
+            else:
+                # Mark current robot1 trajectory as checked
+                self.current_trajectory_checked = True
 
     def execute(self, userdata):
         # Start parallel thread which checks for conflicts

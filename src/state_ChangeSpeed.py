@@ -10,19 +10,6 @@ class ChangeSpeed(smach.State):
                                          'trajectory', 'map_zones'],
                              output_keys=['map_zones', 'speed'])
 
-    @staticmethod
-    def in_segment(pose_c, pose1, pose2):
-        print pose_c, pose1, pose2
-        [tx1, tx2] = [pose1.x, pose2.x] if pose1.x < pose2.x \
-            else [pose2.x, pose1.x]
-        [ty1, ty2] = [pose1.y, pose2.y] if pose1.y < pose2.y \
-            else [pose2.y, pose1.y]
-        
-        if (tx1 <= pose_c.x <= tx2) and (ty1 <= pose_c.y <= ty2):
-            return True
-        else:
-            return False
-
     def execute(self, userdata):
         index = 0
         best_index = [0]
