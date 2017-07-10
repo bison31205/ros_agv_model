@@ -44,7 +44,7 @@ class ChangeSpeed(smach.State):
             best_index_time += userdata.segment_time * userdata.max_speed / userdata.speed[index]
 
         for index in best_index:
-            userdata.speed[index] *= best_index_time / (1 + needed_time + best_index_time)
+            userdata.speed[index] *= best_index_time / (5 + needed_time + best_index_time)
 
         return 'speed_changed'
 
