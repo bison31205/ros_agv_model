@@ -65,7 +65,7 @@ class ConflictResolver(smach.State):
         avg_zone_val = 0
         avg_zone_val_conf = 0
         num_of_seg_conf = 0
-        safe_pose_reached = False
+        conf_pose_reached = False
         for segment in userdata.trajectory:
             seg_start_value = userdata.map_zones.get_zone_value(segment.poses[0].pose.position.x,
                                                                 segment.poses[0].pose.position.y)
@@ -74,12 +74,12 @@ class ConflictResolver(smach.State):
 
             avg_zone_val += seg_start_value if seg_start_value > seg_end_value else seg_end_value
 
-            if not safe_pose_reached:
+            if not conf_pose_reached:
                 avg_zone_val_conf += seg_start_value if seg_start_value > seg_end_value else seg_end_value
                 num_of_seg_conf += 1.0
 
-            if safe_pose in segment.poses:
-                break
+            if conf_pose in segment.poses:
+                conf_pose_reached = True
 
         avg_zone_val_conf /= num_of_seg_conf
         avg_zone_val /= float(len(userdata.trajectory))
