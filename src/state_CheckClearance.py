@@ -76,11 +76,12 @@ class CheckClearance(smach.State):
                 if self.stop_thread:
                     return
 
-            # time at the start of next segment
-            current_time = (userdata.trajectory[0].poses[0].header.stamp.secs +
-                            userdata.trajectory[0].poses[0].header.stamp.nsecs / 1e9)
-
             index = dict()
+            old_time_delta = dict()
+
+            # time at the start of next segment
+            start_time1 = calc_time(userdata.robots_trajectories[robot1].header.stamp)
+            pose1_time_delta = 0
 
             # robot1 = current robot (userdata.robot)
             # robot2 = some other robot (robot from robot_list)
@@ -88,10 +89,7 @@ class CheckClearance(smach.State):
             # Find conflict where robot2 tries to pass same point
             # in space in a narrow time window when there is robot1
             for pose1 in userdata.robots_trajectories[robot1].poses:
-                pose1_time = calc_time(pose1.header.stamp)
-                # don't look at poses which are older than current time
-                if pose1_time < current_time:
-                    continue
+                pose1_time_delta += calc_time(pose1.header.stamp)
 
                 # check with every robot2 if there is a conflict with robot1 in pose1
                 for robot2 in robot_list:
@@ -110,26 +108,31 @@ class CheckClearance(smach.State):
                     # If we haven't found pose2 with sufficient timestamp yet, start from index 0
                     if robot2 not in index:
                         index[robot2] = 0
+                        old_time_delta[robot2] = 0
+
+                    start_time2 = calc_time(userdata.robots_trajectories[robot2].header.stamp)
+                    pose2_time_delta = 0
 
                     # Iterate through robot2 poses from saved index
                     for pose2 in userdata.robots_trajectories[robot2].poses[index[robot2]:]:
-                        pose2_time = calc_time(pose2.header.stamp)
+                        pose2_time_delta += calc_time(pose2.header.stamp)
 
                         # If time difference is bellow 0.1 seconds, check distance
-                        if abs(pose1_time - pose2_time) < 0.3:
+                        if abs((start_time1 + pose1_time_delta) - (start_time2 + pose2_time_delta)) < 0.3:
                             if calc_dist(pose1, pose2) < 0.65:
-                                # [robot_name, safe_pose, future_conflict_time, found_safe_pose]
-                                userdata.conflict_data = [robot2, pose1, pose1_time, False]
+                                # [robot_name, conflict_pose, future_conflict_time, safe_pose, found_safe_pose]
+                                userdata.conflict_data = [robot2, pose1, (start_time2 + pose2_time_delta), pose1, False]
                                 index[robot1] = userdata.robots_trajectories[robot1].poses.index(pose1)
                                 index[robot2] = userdata.robots_trajectories[robot2].poses.index(pose2)
                                 self.conflict = True
                                 break
                         # If pose2 is ahead from pose1, stop checking robot2
-                        elif pose2_time > pose1_time:
+                        elif (start_time2 + pose2_time_delta) > (start_time1 + pose1_time_delta):
                             break
-                        # If pose2 is before pose2, update index
+                        # If pose2 is before pose1, update index
                         else:
                             index[robot2] += 1
+                            old_time_delta[robot2] = pose2_time_delta
                     if self.conflict:
                         break
                 if self.conflict:
@@ -141,24 +144,29 @@ class CheckClearance(smach.State):
                 # - pose1 iterates reversed from conflict pose to start pose
                 # - pose2 iterates from conflict pose until final pose
                 robot2 = userdata.conflict_data[0]
+                future_conflict_time = userdata.conflict_data[2]
                 consecutive_safe = 0
+
+                for pose2 in userdata.robots_trajectories[robot2].poses[index[robot2]:index[robot2]+9]:
+                    future_conflict_time += calc_time(pose2.header.stamp)
+
                 for (pose1, pose2) in zip(reversed(userdata.robots_trajectories[robot1].poses[:index[robot1]]),
                                           userdata.robots_trajectories[robot2].poses[index[robot2]+10:]):
-
+                    future_conflict_time += calc_time(pose2.header.stamp)
                     if calc_dist(pose1, pose2) < 0.65:
                         consecutive_safe = 0
                     else:
                         # if we found last point of continuous overlap, then return last safe pose
-                        # [robot_name, safe_pose, conflict_time, continuous_overlap, found_safe_pose]
-                        userdata.conflict_data[1] = pose1
-                        userdata.conflict_data[2] = pose2.header.stamp.secs + pose2.header.stamp.nsecs / 1e9
-                        userdata.conflict_data[3] = True
+                        # [robot_name, conflict_pose, future_conflict_time, safe_pose, found_safe_pose]
+                        userdata.conflict_data[2] = future_conflict_time
+                        userdata.conflict_data[3] = pose1
+                        userdata.conflict_data[4] = True
                         consecutive_safe += 1
                         if consecutive_safe == 10:
                             break
-                if self.conflict and not userdata.conflict_data[3]:
-                    userdata.conflict_data[1] = userdata.robots_trajectories[robot1].poses[0]
+                if self.conflict and not userdata.conflict_data[4]:
                     userdata.conflict_data[2] = float('Inf')
+                    userdata.conflict_data[3] = userdata.robots_trajectories[robot1].poses[0]
                 return
             else:
                 # Mark current robot1 trajectory as checked

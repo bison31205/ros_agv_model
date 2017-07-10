@@ -18,6 +18,8 @@ class CalcTrajectory(smach.State):
     def publish_active_path(userdata):
         pub_traj = Path()
         pub_traj.header.frame_id = 'world'
+        pub_traj.header.stamp = rospy.Time.from_sec(rospy.get_time())
+
         for path in userdata.trajectory:
             pub_traj.poses += path.poses
 
@@ -32,20 +34,20 @@ class CalcTrajectory(smach.State):
         new_segment = Path()
         new_segment.header.frame_id = 'world'
         pose_old = path.poses[0]
-        time_old = rospy.get_time()
+        time_old = 0  # rospy.get_time()
 
         for pose in path.poses[1:]:
             dist = math.sqrt((pose_old.pose.position.x - pose.pose.position.x) ** 2 +
                              (pose_old.pose.position.y - pose.pose.position.y) ** 2)
 
-            time_next_pose = dist / max_speed
+            next_pose_time = dist / max_speed
 
-            time_old += time_next_pose
+            time_old += next_pose_time
             new_segment.poses.append(pose)
             new_segment.poses[-1].header.seq = len(new_segment.poses) - 1
-            new_segment.poses[-1].header.stamp = rospy.Time.from_sec(time_old)
+            new_segment.poses[-1].header.stamp = rospy.Time.from_sec(next_pose_time)
 
-            if spent_time + time_next_pose > segment_time or pose == path.poses[-1]:
+            if spent_time + next_pose_time > segment_time or pose == path.poses[-1]:
                 trajectory.append(new_segment)
                 speed.append(max_speed)
 
@@ -53,15 +55,15 @@ class CalcTrajectory(smach.State):
                 new_segment.header.frame_id = 'world'
                 spent_time = 0
             else:
-                spent_time += time_next_pose
+                spent_time += next_pose_time
 
             pose_old = pose
         return [trajectory, speed]
 
     @staticmethod
     def recalculate_trajectory(trajectory, speed):
-        time_old = (trajectory[0].poses[0].header.stamp.secs +
-                    trajectory[0].poses[0].header.stamp.nsecs / 1e9)
+        time_old = 0  # (trajectory[0].poses[0].header.stamp.secs +
+                      # trajectory[0].poses[0].header.stamp.nsecs / 1e9)
         pose_old = trajectory[0].poses[0]
 
         index = 0
@@ -74,7 +76,7 @@ class CalcTrajectory(smach.State):
                 next_pose_time = dist / seg_speed
 
                 time_old += next_pose_time
-                pose.header.stamp = rospy.Time.from_sec(time_old)
+                pose.header.stamp = rospy.Time.from_sec(next_pose_time)
 
                 pose_old = pose
 

@@ -44,10 +44,12 @@ class ConflictResolver(smach.State):
         # 2 # Current pose map zone type
         # 3 # Average map zone value from current pose to conflict pose
         # 4 # Average map zone value for whole trajectory
-        # 5 # Distance to safe pose
+        # 5 # Distance to conflict pose
+        # 6 # Distance to safe pose
 
         current_pose = userdata.trajectory[0].poses[0]
-        safe_pose = userdata.conflict_data[1]
+        conf_pose = userdata.conflict_data[1]
+        safe_pose = userdata.conflict_data[3]
 
         # 1
         current_time = (current_pose.header.stamp.secs +
@@ -82,7 +84,10 @@ class ConflictResolver(smach.State):
         avg_zone_val_conf /= num_of_seg_conf
         avg_zone_val /= float(len(userdata.trajectory))
 
-        # 5
+        # 5 & 6
+        dist_conf_pose = math.sqrt((current_pose.pose.position.x - conf_pose.pose.position.x) ** 2 +
+                                   (current_pose.pose.position.y - conf_pose.pose.position.y) ** 2)
+
         dist_safe_pose = math.sqrt((current_pose.pose.position.x - safe_pose.pose.position.x) ** 2 +
                                    (current_pose.pose.position.y - safe_pose.pose.position.y) ** 2)
 
@@ -91,6 +96,7 @@ class ConflictResolver(smach.State):
                               current_zone_value,
                               avg_zone_val_conf,
                               avg_zone_val,
+                              dist_conf_pose,
                               dist_safe_pose]
 
         userdata.pub_features.publish(features)
@@ -135,7 +141,7 @@ class ConflictResolver(smach.State):
             userdata.ignore_conflict_robots.append(userdata.conflict_data[0])
 
         if best_outcome == 'change_speed':
-            if not userdata.conflict_data[3]:
+            if not userdata.conflict_data[4]:
                 return 'change_path'
 
         return best_outcome
