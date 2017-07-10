@@ -20,6 +20,7 @@ class GoalAssignment(smach.State):
 
         # wait for new missions if none are available
         if len(userdata.goal_list) == 0:
+            userdata.new_mission_event.clear()
             if not userdata.new_mission_event.wait(
                     # if its first mission, wait as long as it takes
                     # if there were some mission before, wait for 5 seconds
