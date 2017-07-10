@@ -117,7 +117,7 @@ class ConflictResolver(smach.State):
             userdata.features_updated_event.wait()
             userdata.features_updated_event.clear()
             # If only this robot detected the conflict, ignore it for now and recalculate trajectory
-            if rospy.get_time() - waiting_start > userdata.segment_time:
+            if rospy.get_time() - waiting_start > userdata.segment_time / 2:
                 return 'recalculate_trajectory'
         self.publish_features(userdata)
 

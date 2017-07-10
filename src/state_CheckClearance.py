@@ -100,8 +100,7 @@ class CheckClearance(smach.State):
                     # skip robots that conflict resolver said to ignore
                     # also skip robots whose current trajectory is known to have no conflict
                     # DON'T SKIP ANY IF robot1 TRAJECTORY WAS CHANGED
-                    if (robot2 in userdata.ignore_conflict_robots and
-                            self.current_trajectory_checked):
+                    if robot2 in userdata.ignore_conflict_robots:
                         continue
 
                     # Optimization wise, only check poses with timestamp 'just before' pose1
@@ -119,7 +118,7 @@ class CheckClearance(smach.State):
 
                         # If time difference is bellow 0.1 seconds, check distance
                         if abs((start_time1 + pose1_time_delta) - (start_time2 + pose2_time_delta)) < 0.3:
-                            if calc_dist(pose1, pose2) < 0.65:
+                            if calc_dist(pose1, pose2) < 0.55:
                                 # [robot_name, conflict_pose, future_conflict_time, safe_pose, found_safe_pose]
                                 userdata.conflict_data = [robot2, pose1, (start_time2 + pose2_time_delta), pose1, False]
                                 index[robot1] = userdata.robots_trajectories[robot1].poses.index(pose1)
@@ -153,7 +152,7 @@ class CheckClearance(smach.State):
                 for (pose1, pose2) in zip(reversed(userdata.robots_trajectories[robot1].poses[:index[robot1]]),
                                           userdata.robots_trajectories[robot2].poses[index[robot2]+10:]):
                     future_conflict_time += calc_time(pose2.header.stamp)
-                    if calc_dist(pose1, pose2) < 0.65:
+                    if calc_dist(pose1, pose2) < 0.55:
                         consecutive_safe = 0
                     else:
                         # if we found last point of continuous overlap, then return last safe pose

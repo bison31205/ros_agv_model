@@ -28,7 +28,6 @@ class Driving(smach.State):
         pub_traj = Path()
         pub_traj.header.frame_id = 'world'
 
-        rospy.sleep(1)
         userdata.new_odom_event.clear()
         userdata.new_odom_event.wait()
         userdata.new_odom_event.clear()
