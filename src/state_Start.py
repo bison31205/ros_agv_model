@@ -12,7 +12,7 @@ class Start(smach.State):
         smach.State.__init__(self,
                              outcomes=['init_complete'],
                              input_keys=['robot', 'pub_trajectory'],
-                             output_keys=['map', 'pose', 'pub_trajectory'])
+                             output_keys=['map', 'pose', 'pub_trajectory', 'new_mission'])
         self.mapReady_event = threading.Event()
         self.poseReady_event = threading.Event()
         self.map = OccupancyGrid()
@@ -48,4 +48,5 @@ class Start(smach.State):
 
         userdata.map = self.map
         userdata.pose = self.pose
+        userdata.new_mission = False
         return 'init_complete'

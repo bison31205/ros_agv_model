@@ -32,18 +32,19 @@ class RobotModel:
         self.robot = rospy.get_param('name')
         self.robot_list = rospy.get_param('robot_list')
 
-        self.sub_robot_traj = dict()
-        self.sub_robot_feat = dict()
-
         # Create a SMACH state machine
         self.sm = smach.StateMachine(outcomes=['END'])
         self.sm.userdata.robot = self.robot
         self.sm.userdata.robot_list = self.robot_list
         self.sm.userdata.robot_data = []
-        self.sm.userdata.segment_time = 7  # seconds
-        self.sm.userdata.max_speed = 0.2  # m/s
+        self.sm.userdata.segment_time = rospy.get_param('segment_time')
+        self.sm.userdata.max_speed = rospy.get_param('max_speed')
         self.sm.userdata.goal_list = []
-        self.sm.userdata.goal_counter = [0, 0, []]
+        # [goals_received, goals_completed,
+        # ideal_time, real_time,
+        # ideal_lenght, real_length,
+        # goal_started, goal_finished]
+        self.sm.userdata.goal_counter = [0, 0, [], [], [], [], [], []]
         self.sm.userdata.odom = Odometry()
         self.sm.userdata.robots_trajectories = dict()
         self.sm.userdata.robots_features = dict()
@@ -62,6 +63,8 @@ class RobotModel:
         self.load_learning_data()
 
         # Create SM subscribers
+        self.sub_robot_traj = dict()
+        self.sub_robot_feat = dict()
         self.odom_sub = rospy.Subscriber(self.robot + '/odom', Odometry, self.odom_callback, queue_size=1)
         self.goal_sub = rospy.Subscriber(self.robot + '/mission', PoseStamped, self.mission_callback, queue_size=1)
         self.path_sub = rospy.Subscriber(self.robot + '/plan', Path, self.plan_callback, queue_size=1)
@@ -79,7 +82,7 @@ class RobotModel:
         self.sm.userdata.pub_path = rospy.Publisher(self.robot + "/follow_path", Path, queue_size=10, latch=True)
         self.sm.userdata.pub_trajectory = rospy.Publisher("trajectories/" + self.robot, Path, queue_size=10, latch=True)
         self.sm.userdata.pub_features = rospy.Publisher("features/" + self.robot, Features, queue_size=20, latch=True)
-        self.sm.userdata.pub_exit = rospy.Publisher("exit_state/" + self.robot, Statistics, queue_size=10, latch=True)
+        self.sm.userdata.pub_exit = rospy.Publisher("exit_performance/" + self.robot, Statistics, queue_size=10, latch=True)
 
         # Open the container
         with self.sm:

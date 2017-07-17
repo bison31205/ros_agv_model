@@ -8,11 +8,11 @@ class Driving(smach.State):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['goal_reached', 'next_segment'],
-                             input_keys=['robot', 'trajectory',
+                             input_keys=['robot', 'trajectory', 'segment_length',
                                          'speed', 'max_speed',
                                          'goal_counter', 'goal_list', 'goal_time',
                                          'pub_speed', 'pub_path', 'pub_trajectory'],
-                             output_keys=['trajectory', 'speed'
+                             output_keys=['trajectory', 'speed', 'segment_length',
                                           'goal_counter', 'goal_list',
                                           'pub_speed', 'pub_path', 'pub_trajectory'])
 
@@ -34,8 +34,12 @@ class Driving(smach.State):
         userdata.pub_speed.publish(cmd_vel)
         userdata.pub_path.publish(userdata.trajectory[0])
 
+        userdata.goal_counter[3][-1] += userdata.segment_length[0] / userdata.speed[0]
+        userdata.goal_counter[5][-1] += userdata.segment_length[0]
+
         userdata.trajectory.pop(0)
         userdata.speed.pop(0)
+        userdata.segment_length.pop(0)
 
         self.publish_active_path(userdata)
 
@@ -47,7 +51,6 @@ class Driving(smach.State):
             if all_goals == done_goals + active_goals:
                 # it's a mission
                 userdata.goal_counter[1] += 1
-                userdata.goal_counter[2].append(rospy.get_time() - userdata.goal_time)
 
             userdata.goal_list.pop(0)
             return 'goal_reached'

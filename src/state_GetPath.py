@@ -11,9 +11,10 @@ class GetPath(smach.State):
                                          'pub_goal'],
                              output_keys=['speed',
                                           'trajectory', 'path_ready_event',
-                                          'pub_goal'])
+                                          'pub_goal', 'segment_length'])
 
     def execute(self, userdata):
+        print userdata.goal_list[0].header.seq
         userdata.pub_goal.publish(userdata.goal_list[0])
 
         rospy.loginfo("{" + userdata.robot + "} Waiting for path to goal")
@@ -23,4 +24,5 @@ class GetPath(smach.State):
 
         userdata.speed = []
         userdata.trajectory = []
+        userdata.segment_length = []
         return 'path_received'
